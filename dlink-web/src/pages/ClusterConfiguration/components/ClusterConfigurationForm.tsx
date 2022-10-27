@@ -26,6 +26,7 @@ import {FLINK_CONFIG_LIST, HADOOP_CONFIG_LIST, KUBERNETES_CONFIG_LIST} from "@/p
 import {testClusterConfigurationConnect} from "@/pages/ClusterConfiguration/service";
 import type {ClusterConfigurationTableListItem} from "@/pages/ClusterConfiguration/data";
 import {CODE} from "@/components/Common/crud";
+import {useIntl} from 'umi';
 
 export type ClusterConfigurationFormProps = {
   onCancel: (flag?: boolean) => void;
@@ -41,6 +42,11 @@ const formLayout = {
 };
 
 const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props) => {
+
+
+  const intl = useIntl();
+  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
+
 
   const [form] = Form.useForm();
   const [formVals, setFormVals] = useState<Partial<ClusterConfigurationTableListItem>>({
@@ -102,12 +108,37 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
     return {
       name: 'files',
       action: '/api/fileUpload',
-      // accept: 'application/json',
       headers: {
         authorization: 'authorization-text',
       },
       data: {
         dir
+      },
+      showUploadList: true,
+      onChange(info) {
+        if (info.file.status === 'done') {
+          if (info.file.response.code == CODE.SUCCESS) {
+            message.success(info.file.response.msg);
+          } else {
+            message.warn(info.file.response.msg);
+          }
+        } else if (info.file.status === 'error') {
+          message.error(`${info.file.name} 上传失败`);
+        }
+      },
+    }
+  };
+
+  const getUploadHdfsProps = (dir: string) => {
+    return {
+      name: 'files',
+      action: '/api/fileUpload/hdfs',
+      headers: {
+        authorization: 'authorization-text',
+      },
+      data: {
+        dir,
+        hadoopConfigPath
       },
       showUploadList: true,
       onChange(info) {
@@ -146,7 +177,7 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
           >
             <Input placeholder="值如 /etc/hadoop/conf" addonAfter={
               <Form.Item name="suffix" noStyle>
-                <Upload {...getUploadProps(hadoopConfigPath)}>
+                <Upload {...getUploadProps(hadoopConfigPath)} multiple>
                   <UploadOutlined/>
                 </Upload>
               </Form.Item>}/>
@@ -235,7 +266,7 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
           >
             <Input placeholder="值如 hdfs:///flink/lib" addonAfter={
               <Form.Item name="suffix" noStyle>
-                <Upload {...getUploadProps(flinkLibPath)}>
+                <Upload {...getUploadHdfsProps(flinkLibPath)} multiple>
                   <UploadOutlined/>
                 </Upload>
               </Form.Item>}/>
@@ -312,7 +343,7 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
         </Form.Item>
         <Form.Item
           name="enabled"
-          label="是否启用">
+          label={l('global.table.isEnable')}>
           <Switch checkedChildren="启用" unCheckedChildren="禁用"
                   defaultChecked={formValsPara.enabled}/>
         </Form.Item>
@@ -338,12 +369,12 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
   const renderFooter = () => {
     return (
       <>
-        <Button onClick={() => handleModalVisible(false)}>取消</Button>
+        <Button onClick={() => handleModalVisible(false)}>{l('button.cancel')}</Button>
         <Button type="primary" htmlType="button" onClick={testForm}>
           测试
         </Button>
         <Button type="primary" onClick={() => submitForm()}>
-          完成
+          {l('button.finish')}
         </Button>
       </>
     );
@@ -351,8 +382,8 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
 
   return (
     <Modal
-      width={1200}
-      bodyStyle={{padding: '32px 40px 48px'}}
+      width={"60%"}
+      bodyStyle={{padding: '32px 40px 48px', height: '600px', overflowY: 'auto'}}
       destroyOnClose
       title={formVals.id ? "维护集群配置" : "创建集群配置"}
       visible={modalVisible}

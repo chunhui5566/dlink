@@ -19,6 +19,7 @@
 
 package com.dlink.cdc.doris;
 
+import com.dlink.assertion.Asserts;
 import com.dlink.cdc.AbstractSinkBuilder;
 import com.dlink.cdc.SinkBuilder;
 import com.dlink.model.FlinkCDCConfig;
@@ -40,11 +41,13 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 
 /**
  * DorisSinkBuilder
  **/
-public class DorisSinkBuilder extends AbstractSinkBuilder implements SinkBuilder, Serializable {
+public class DorisSinkBuilder extends AbstractSinkBuilder implements Serializable {
 
     private static final String KEY_WORD = "datastream-doris";
     private static final long serialVersionUID = 8330362249137471854L;
@@ -137,14 +140,23 @@ public class DorisSinkBuilder extends AbstractSinkBuilder implements SinkBuilder
         }
         if (sink.containsKey(DorisSinkOptions.SINK_ENABLE_DELETE.key())) {
             executionBuilder.setDeletable(Boolean.valueOf(sink.get(DorisSinkOptions.SINK_ENABLE_DELETE.key())));
+        } else {
+            executionBuilder.setDeletable(true);
         }
         if (sink.containsKey(DorisSinkOptions.SINK_LABEL_PREFIX.key())) {
-            executionBuilder.setLabelPrefix(getSinkSchemaName(table) + "_" + getSinkTableName(table) + sink.get(DorisSinkOptions.SINK_LABEL_PREFIX.key()));
+            executionBuilder.setLabelPrefix(sink.get(DorisSinkOptions.SINK_LABEL_PREFIX.key()) + "-" + getSinkSchemaName(table) + "_" + getSinkTableName(table));
+        } else {
+            executionBuilder.setLabelPrefix("dlink-" + getSinkSchemaName(table) + "_" + getSinkTableName(table) + UUID.randomUUID());
         }
         if (sink.containsKey(DorisSinkOptions.SINK_MAX_RETRIES.key())) {
             executionBuilder.setMaxRetries(Integer.valueOf(sink.get(DorisSinkOptions.SINK_MAX_RETRIES.key())));
         }
-        executionBuilder.setStreamLoadProp(getProperties());
+
+        Properties properties = getProperties();
+        // Doris 1.1 need to this para to support delete
+        properties.setProperty("columns", String.join(",", columnNameList) + ",__DORIS_DELETE_SIGN__");
+
+        executionBuilder.setStreamLoadProp(properties);
 
         // Create DorisSink.
         DorisSink.Builder<RowData> builder = DorisSink.builder();
@@ -153,9 +165,22 @@ public class DorisSinkBuilder extends AbstractSinkBuilder implements SinkBuilder
             .setSerializer(RowDataSerializer.builder()
                 .setFieldNames(columnNames)
                 .setType("json")
+                .enableDelete(true)
                 .setFieldType(columnTypes).build())
             .setDorisOptions(dorisBuilder.build());
 
         rowDataDataStream.sinkTo(builder.build()).name("Doris Sink(table=[" + getSinkSchemaName(table) + "." + getSinkTableName(table) + "])");
+    }
+
+    @Override
+    protected Properties getProperties() {
+        Properties properties = new Properties();
+        Map<String, String> sink = config.getSink();
+        for (Map.Entry<String, String> entry : sink.entrySet()) {
+            if (Asserts.isNotNullString(entry.getKey()) && entry.getKey().startsWith("sink.properties") && Asserts.isNotNullString(entry.getValue())) {
+                properties.setProperty(entry.getKey().replace("sink.properties.", ""), entry.getValue());
+            }
+        }
+        return properties;
     }
 }

@@ -48,6 +48,12 @@ import com.dlink.model.Schema;
 import com.dlink.model.SystemConfiguration;
 import com.dlink.model.Table;
 import com.dlink.model.Task;
+import com.dlink.model.UDFPath;
+import com.dlink.process.context.ProcessContextHolder;
+import com.dlink.process.model.ProcessEntity;
+import com.dlink.process.model.ProcessType;
+import com.dlink.process.pool.ConsolePool;
+import com.dlink.process.pool.ProcessPool;
 import com.dlink.result.DDLResult;
 import com.dlink.result.IResult;
 import com.dlink.result.SelectResult;
@@ -59,6 +65,7 @@ import com.dlink.service.FragmentVariableService;
 import com.dlink.service.SavepointsService;
 import com.dlink.service.StudioService;
 import com.dlink.service.TaskService;
+import com.dlink.service.UDFService;
 import com.dlink.session.SessionConfig;
 import com.dlink.session.SessionInfo;
 import com.dlink.session.SessionPool;
@@ -80,6 +87,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import cn.dev33.satoken.SaManager;
 
 /**
  * StudioServiceImpl
@@ -106,18 +115,44 @@ public class StudioServiceImpl implements StudioService {
     @Autowired
     private FragmentVariableService fragmentVariableService;
 
+    @Autowired
+    private UDFService udfService;
+
     private void addFlinkSQLEnv(AbstractStatementDTO statementDTO) {
-        statementDTO.setVariables(fragmentVariableService.listEnabledVariables());
-        String flinkWithSql = dataBaseService.getEnabledFlinkWithSql();
-        if (statementDTO.isFragment() && Asserts.isNotNullString(flinkWithSql)) {
-            statementDTO.setStatement(flinkWithSql + "\r\n" + statementDTO.getStatement());
-        }
-        if (Asserts.isNotNull(statementDTO.getEnvId()) && !statementDTO.getEnvId().equals(0)) {
-            Task task = taskService.getTaskInfoById(statementDTO.getEnvId());
-            if (Asserts.isNotNull(task) && Asserts.isNotNullString(task.getStatement())) {
-                statementDTO.setStatement(task.getStatement() + "\r\n" + statementDTO.getStatement());
+        ProcessEntity process = ProcessContextHolder.getProcess();
+        process.info("Start Initialize FlinkSQLEnv:");
+        if (statementDTO.isFragment()) {
+            process.config("Variable opened.");
+
+            // initialize global variables
+            process.info("Initializing Global Variables...");
+            statementDTO.setVariables(fragmentVariableService.listEnabledVariables());
+            process.infoSuccess();
+
+            // initialize database variables
+            process.info("Initializing Database Variables...");
+            String flinkWithSql = dataBaseService.getEnabledFlinkWithSql();
+            if (Asserts.isNotNullString(flinkWithSql)) {
+                statementDTO.setStatement(flinkWithSql + "\n" + statementDTO.getStatement());
+                process.infoSuccess();
+            } else {
+                process.info("No variables are loaded.");
             }
         }
+
+        // initialize flinksql environment, such as flink catalog
+        if (Asserts.isNotNull(statementDTO.getEnvId()) && !statementDTO.getEnvId().equals(0)) {
+            process.config("FlinkSQLEnv opened.");
+            process.info("Initializing FlinkSQLEnv...");
+            Task task = taskService.getTaskInfoById(statementDTO.getEnvId());
+            if (Asserts.isNotNull(task) && Asserts.isNotNullString(task.getStatement())) {
+                statementDTO.setStatement(task.getStatement() + "\n" + statementDTO.getStatement());
+                process.infoSuccess();
+            } else {
+                process.info("No FlinkSQLEnv are loaded.");
+            }
+        }
+        process.info("Finish Initialize FlinkSQLEnv.");
     }
 
     private void buildSession(JobConfig config) {
@@ -131,7 +166,7 @@ public class StudioServiceImpl implements StudioService {
     public JobResult executeSql(StudioExecuteDTO studioExecuteDTO) {
         if (Dialect.notFlinkSql(studioExecuteDTO.getDialect())) {
             return executeCommonSql(SqlDTO.build(studioExecuteDTO.getStatement(),
-                studioExecuteDTO.getDatabaseId(), studioExecuteDTO.getMaxRowNum()));
+                    studioExecuteDTO.getDatabaseId(), studioExecuteDTO.getMaxRowNum()));
         } else {
             return executeFlinkSql(studioExecuteDTO);
         }
@@ -141,8 +176,10 @@ public class StudioServiceImpl implements StudioService {
         addFlinkSQLEnv(studioExecuteDTO);
         JobConfig config = studioExecuteDTO.getJobConfig();
         buildSession(config);
-        // To initialize java udf, but it has a bug in the product environment now.
-        initUDF(config, studioExecuteDTO.getStatement());
+        // To initialize java udf, but it only support local mode.
+        UDFPath udfPath = udfService.initUDF(studioExecuteDTO.getStatement(), GatewayType.get(config.getType()));
+        config.setJarFiles(udfPath.getJarPaths());
+        config.setPyFiles(udfPath.getPyPaths());
         JobManager jobManager = JobManager.build(config);
         JobResult jobResult = jobManager.executeSql(studioExecuteDTO.getStatement());
         RunTimeUtil.recovery(jobManager);
@@ -158,6 +195,7 @@ public class StudioServiceImpl implements StudioService {
         return jobResult;
     }
 
+    @Override
     public JobResult executeCommonSql(SqlDTO sqlDTO) {
         JobResult result = new JobResult();
         result.setStatement(sqlDTO.getStatement());
@@ -194,7 +232,8 @@ public class StudioServiceImpl implements StudioService {
     public IResult executeDDL(StudioDDLDTO studioDDLDTO) {
         JobConfig config = studioDDLDTO.getJobConfig();
         if (!config.isUseSession()) {
-            config.setAddress(clusterService.buildEnvironmentAddress(config.isUseRemote(), studioDDLDTO.getClusterId()));
+            config.setAddress(
+                    clusterService.buildEnvironmentAddress(config.isUseRemote(), studioDDLDTO.getClusterId()));
         }
         JobManager jobManager = JobManager.build(config);
         return jobManager.executeDDL(studioDDLDTO.getStatement());
@@ -210,20 +249,35 @@ public class StudioServiceImpl implements StudioService {
     }
 
     private List<SqlExplainResult> explainFlinkSql(StudioExecuteDTO studioExecuteDTO) {
+        Map<String, ProcessEntity> map = ProcessPool.getInstance().getMap();
+        Map<String, StringBuilder> map2 = ConsolePool.getInstance().getMap();
+        ProcessEntity process = ProcessContextHolder.registerProcess(
+                ProcessEntity.init(ProcessType.FLINKEXPLAIN, SaManager.getStpLogic(null).getLoginIdAsInt(), "admin"));
+
         addFlinkSQLEnv(studioExecuteDTO);
+
+        process.info("Initializing Flink Job Config...");
         JobConfig config = studioExecuteDTO.getJobConfig();
         // If you are using explainSql | getStreamGraph | getJobPlan, make the dialect change to local.
         config.buildLocal();
         buildSession(config);
+        process.infoSuccess();
         // To initialize java udf, but it has a bug in the product environment now.
-        // initUDF(config,studioExecuteDTO.getStatement());
+        UDFPath udfPath = udfService.initUDF(studioExecuteDTO.getStatement(), GatewayType.get(config.getType()));
+        config.setJarFiles(udfPath.getJarPaths());
+        config.setPyFiles(udfPath.getPyPaths());
+        process.start();
         JobManager jobManager = JobManager.buildPlanMode(config);
-        return jobManager.explainSql(studioExecuteDTO.getStatement()).getSqlExplainResults();
+        List<SqlExplainResult> sqlExplainResults =
+                jobManager.explainSql(studioExecuteDTO.getStatement()).getSqlExplainResults();
+        process.finish();
+        return sqlExplainResults;
     }
 
     private List<SqlExplainResult> explainCommonSql(StudioExecuteDTO studioExecuteDTO) {
         if (Asserts.isNull(studioExecuteDTO.getDatabaseId())) {
             return new ArrayList<SqlExplainResult>() {
+
                 {
                     add(SqlExplainResult.fail(studioExecuteDTO.getStatement(), "请指定数据源"));
                 }
@@ -232,6 +286,7 @@ public class StudioServiceImpl implements StudioService {
             DataBase dataBase = dataBaseService.getById(studioExecuteDTO.getDatabaseId());
             if (Asserts.isNull(dataBase)) {
                 return new ArrayList<SqlExplainResult>() {
+
                     {
                         add(SqlExplainResult.fail(studioExecuteDTO.getStatement(), "数据源不存在"));
                     }
@@ -262,6 +317,9 @@ public class StudioServiceImpl implements StudioService {
         // If you are using explainSql | getStreamGraph | getJobPlan, make the dialect change to local.
         config.buildLocal();
         buildSession(config);
+        UDFPath udfPath = udfService.initUDF(studioExecuteDTO.getStatement(), GatewayType.get(config.getType()));
+        config.setJarFiles(udfPath.getJarPaths());
+        config.setPyFiles(udfPath.getPyPaths());
         JobManager jobManager = JobManager.buildPlanMode(config);
         String planJson = jobManager.getJobPlanJson(studioExecuteDTO.getStatement());
         ObjectMapper mapper = new ObjectMapper();
@@ -285,15 +343,15 @@ public class StudioServiceImpl implements StudioService {
         if (sessionDTO.isUseRemote()) {
             Cluster cluster = clusterService.getById(sessionDTO.getClusterId());
             SessionConfig sessionConfig = SessionConfig.build(
-                sessionDTO.getType(), true,
-                cluster.getId(), cluster.getAlias(),
-                clusterService.buildEnvironmentAddress(true, sessionDTO.getClusterId()));
+                    sessionDTO.getType(), true,
+                    cluster.getId(), cluster.getAlias(),
+                    clusterService.buildEnvironmentAddress(true, sessionDTO.getClusterId()));
             return JobManager.createSession(sessionDTO.getSession(), sessionConfig, createUser);
         } else {
             SessionConfig sessionConfig = SessionConfig.build(
-                sessionDTO.getType(), false,
-                null, null,
-                clusterService.buildEnvironmentAddress(false, null));
+                    sessionDTO.getType(), false,
+                    null, null,
+                    clusterService.buildEnvironmentAddress(false, null));
             return JobManager.createSession(sessionDTO.getSession(), sessionConfig, createUser);
         }
     }
@@ -310,7 +368,8 @@ public class StudioServiceImpl implements StudioService {
 
     @Override
     public LineageResult getLineage(StudioCADTO studioCADTO) {
-        if (Asserts.isNotNullString(studioCADTO.getDialect()) && !studioCADTO.getDialect().equalsIgnoreCase("flinksql")) {
+        if (Asserts.isNotNullString(studioCADTO.getDialect())
+                && !studioCADTO.getDialect().equalsIgnoreCase("flinksql")) {
             if (Asserts.isNull(studioCADTO.getDatabaseId())) {
                 return null;
             }
@@ -319,9 +378,11 @@ public class StudioServiceImpl implements StudioService {
                 return null;
             }
             if (studioCADTO.getDialect().equalsIgnoreCase("doris")) {
-                return com.dlink.explainer.sqllineage.LineageBuilder.getSqlLineage(studioCADTO.getStatement(), "mysql", dataBase.getDriverConfig());
+                return com.dlink.explainer.sqllineage.LineageBuilder.getSqlLineage(studioCADTO.getStatement(), "mysql",
+                        dataBase.getDriverConfig());
             } else {
-                return com.dlink.explainer.sqllineage.LineageBuilder.getSqlLineage(studioCADTO.getStatement(), studioCADTO.getDialect().toLowerCase(), dataBase.getDriverConfig());
+                return com.dlink.explainer.sqllineage.LineageBuilder.getSqlLineage(studioCADTO.getStatement(),
+                        studioCADTO.getDialect().toLowerCase(), dataBase.getDriverConfig());
             }
         } else {
             addFlinkSQLEnv(studioCADTO);
@@ -352,7 +413,8 @@ public class StudioServiceImpl implements StudioService {
         JobConfig jobConfig = new JobConfig();
         jobConfig.setAddress(cluster.getJobManagerHost());
         if (Asserts.isNotNull(cluster.getClusterConfigurationId())) {
-            Map<String, Object> gatewayConfig = clusterConfigurationService.getGatewayConfig(cluster.getClusterConfigurationId());
+            Map<String, Object> gatewayConfig =
+                    clusterConfigurationService.getGatewayConfig(cluster.getClusterConfigurationId());
             jobConfig.buildGatewayConfig(gatewayConfig);
         }
         JobManager jobManager = JobManager.build(jobConfig);
@@ -370,7 +432,8 @@ public class StudioServiceImpl implements StudioService {
         jobConfig.setType(cluster.getType());
         // 如果用户选择用dlink平台来托管集群信息 说明任务一定是从dlink发起提交的
         if (Asserts.isNotNull(cluster.getClusterConfigurationId())) {
-            Map<String, Object> gatewayConfig = clusterConfigurationService.getGatewayConfig(cluster.getClusterConfigurationId());
+            Map<String, Object> gatewayConfig =
+                    clusterConfigurationService.getGatewayConfig(cluster.getClusterConfigurationId());
             jobConfig.buildGatewayConfig(gatewayConfig);
             jobConfig.getGatewayConfig().getClusterConfig().setAppId(cluster.getName());
             jobConfig.setTaskId(cluster.getTaskId());
@@ -428,7 +491,8 @@ public class StudioServiceImpl implements StudioService {
                     }
                 }
                 for (Catalog catalog : catalogs) {
-                    String statement = FlinkQuery.useCatalog(catalog.getName()) + FlinkQuery.separator() + FlinkQuery.showDatabases();
+                    String statement = FlinkQuery.useCatalog(catalog.getName()) + FlinkQuery.separator()
+                            + FlinkQuery.showDatabases();
                     studioMetaStoreDTO.setStatement(statement);
                     IResult tableResult = executeMSFlinkSql(studioMetaStoreDTO);
                     if (result instanceof DDLResult) {
@@ -462,7 +526,7 @@ public class StudioServiceImpl implements StudioService {
             }
         } else {
             String baseStatement = FlinkQuery.useCatalog(studioMetaStoreDTO.getCatalog()) + FlinkQuery.separator()
-                + FlinkQuery.useDatabase(studioMetaStoreDTO.getDatabase()) + FlinkQuery.separator();
+                    + FlinkQuery.useDatabase(studioMetaStoreDTO.getDatabase()) + FlinkQuery.separator();
             // show tables
             String tableStatement = baseStatement + FlinkQuery.showTables();
             studioMetaStoreDTO.setStatement(tableStatement);
@@ -500,7 +564,7 @@ public class StudioServiceImpl implements StudioService {
             // nothing to do
         } else {
             String baseStatement = FlinkQuery.useCatalog(studioMetaStoreDTO.getCatalog()) + FlinkQuery.separator()
-                + FlinkQuery.useDatabase(studioMetaStoreDTO.getDatabase()) + FlinkQuery.separator();
+                    + FlinkQuery.useDatabase(studioMetaStoreDTO.getDatabase()) + FlinkQuery.separator();
             // desc tables
             String tableStatement = baseStatement + FlinkQuery.descTable(studioMetaStoreDTO.getTable());
             studioMetaStoreDTO.setStatement(tableStatement);
@@ -511,13 +575,12 @@ public class StudioServiceImpl implements StudioService {
                 int i = 1;
                 for (Map<String, Object> item : rowData) {
                     FlinkColumn column = FlinkColumn.build(i,
-                        item.get(FlinkQuery.columnName()).toString(),
-                        item.get(FlinkQuery.columnType()).toString(),
-                        item.get(FlinkQuery.columnKey()).toString(),
-                        item.get(FlinkQuery.columnNull()).toString(),
-                        item.get(FlinkQuery.columnExtras()).toString(),
-                        item.get(FlinkQuery.columnWatermark()).toString()
-                    );
+                            item.get(FlinkQuery.columnName()).toString(),
+                            item.get(FlinkQuery.columnType()).toString(),
+                            item.get(FlinkQuery.columnKey()).toString(),
+                            item.get(FlinkQuery.columnNull()).toString(),
+                            item.get(FlinkQuery.columnExtras()).toString(),
+                            item.get(FlinkQuery.columnWatermark()).toString());
                     columns.add(column);
                     i++;
                 }
@@ -545,14 +608,4 @@ public class StudioServiceImpl implements StudioService {
         return infos;
     }
 
-    private void initUDF(JobConfig config, String statement) {
-        if (!GatewayType.LOCAL.equalsValue(config.getType())) {
-            return;
-        }
-        List<String> udfClassNameList = JobManager.getUDFClassName(statement);
-        for (String item : udfClassNameList) {
-            Task task = taskService.getUDFByClassName(item);
-            JobManager.initUDF(item, task.getStatement());
-        }
-    }
 }

@@ -28,8 +28,10 @@ import com.dlink.executor.ExecutorSetting;
 import com.dlink.interceptor.FlinkInterceptor;
 import com.dlink.parser.SqlType;
 import com.dlink.trans.Operations;
+import com.dlink.utils.SqlUtil;
 
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.python.PythonOptions;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -51,6 +53,7 @@ import org.slf4j.LoggerFactory;
  * @since 2021/10/27
  **/
 public class Submiter {
+
     private static final Logger logger = LoggerFactory.getLogger(Submiter.class);
 
     private static String getQuerySQL(Integer id) throws SQLException {
@@ -74,7 +77,8 @@ public class Submiter {
         try {
             statement = DBUtil.getOneByID(getQuerySQL(id), config);
         } catch (IOException | SQLException e) {
-            logger.error("{} --> 获取 FlinkSQL 配置异常，ID 为 {}, 连接信息为：{} ,异常信息为：{} ", LocalDateTime.now(), id, config.toString(), e.getMessage(), e);
+            logger.error("{} --> 获取 FlinkSQL 配置异常，ID 为 {}, 连接信息为：{} ,异常信息为：{} ", LocalDateTime.now(), id,
+                    config.toString(), e.getMessage(), e);
         }
         return statement;
     }
@@ -84,13 +88,14 @@ public class Submiter {
         try {
             task = DBUtil.getMapByID(getTaskInfo(id), config);
         } catch (IOException | SQLException e) {
-            logger.error("{} --> 获取 FlinkSQL 配置异常，ID 为 {}, 连接信息为：{} ,异常信息为：{} ", LocalDateTime.now(), id, config.toString(), e.getMessage(), e);
+            logger.error("{} --> 获取 FlinkSQL 配置异常，ID 为 {}, 连接信息为：{} ,异常信息为：{} ", LocalDateTime.now(), id,
+                    config.toString(), e.getMessage(), e);
         }
         return task;
     }
 
     public static List<String> getStatements(String sql) {
-        return Arrays.asList(sql.split(FlinkSQLConstant.SEPARATOR));
+        return Arrays.asList(SqlUtil.getStatements(sql));
     }
 
     public static void submit(Integer id, DBConfig dbConfig) {
@@ -116,6 +121,7 @@ public class Submiter {
             executorSetting.getConfig().put(CheckpointingOptions.SAVEPOINT_DIRECTORY.key(),
                     executorSetting.getConfig().get(CheckpointingOptions.SAVEPOINT_DIRECTORY.key()) + "/" + uuid);
         }
+        executorSetting.getConfig().put(PythonOptions.PYTHON_FILES.key(), "./python_udf.zip");
         logger.info("作业配置如下： {}", executorSetting);
         Executor executor = Executor.buildAppStreamExecutor(executorSetting);
         List<StatementParam> ddl = new ArrayList<>();
@@ -183,7 +189,6 @@ public class Submiter {
                 logger.error("执行失败, {}", e.getMessage(), e);
             }
         }
-        logger.info(LocalDateTime.now() + "任务提交成功");
-        System.out.println(LocalDateTime.now() + "任务提交成功");
+        logger.info("{}任务提交成功", LocalDateTime.now());
     }
 }

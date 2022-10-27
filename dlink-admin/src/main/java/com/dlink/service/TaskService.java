@@ -59,11 +59,13 @@ public interface TaskService extends ISuperService<Task> {
 
     List<Task> listFlinkSQLEnv();
 
-    Task initDefaultFlinkSQLEnv();
+    Task initDefaultFlinkSQLEnv(Integer tenantId);
 
     String exportSql(Integer id);
 
     Task getUDFByClassName(String className);
+
+    List<Task> getAllUDF();
 
     Result releaseTask(Integer id);
 
@@ -107,5 +109,7 @@ public interface TaskService extends ISuperService<Task> {
     void selectSavepointOnLineTask(TaskOperatingResult taskOperatingResult);
 
     void selectSavepointOffLineTask(TaskOperatingResult taskOperatingResult);
+
+    Task getTaskByNameAndTenantId(String name, Integer tenantId);
 
 }

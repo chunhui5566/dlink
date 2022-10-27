@@ -19,38 +19,43 @@
 
 
 import React from "react";
-import {KeyOutlined, CheckSquareOutlined} from '@ant-design/icons';
+import {CheckSquareOutlined, KeyOutlined} from '@ant-design/icons';
 import DTable from "@/components/Common/DTable";
+import {useIntl} from 'umi';
 
 const Columns = (props: any) => {
 
-  const {dbId,table,schema} = props;
+  const intl = useIntl();
+  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
+
+
+  const {dbId, table, schema, scroll} = props;
 
   const cols = [{
-    title: '序号',
+    title: l('global.table.no'),
     dataIndex: 'position',
     isString: false,
   },
     {
-      title: '列名',
+      title: l('global.table.columnName'),
       dataIndex: 'name',
       copyable: true,
     },
     {
-      title: '注释',
+      title: l('global.table.annotation'),
       dataIndex: 'comment',
       // ellipsis: true,
     },
     {
-      title: '类型',
+      title: l('global.table.type'),
       dataIndex: 'type',
     },
     {
-      title: '主键',
+      title: l('global.table.primarykey'),
       dataIndex: 'keyFlag',
       render: (_, record) => (
         <>
-          {record.keyFlag?<KeyOutlined style={{ color:'#FAA100'}} />:undefined}
+          {record.keyFlag ? <KeyOutlined style={{color: '#FAA100'}}/> : undefined}
         </>
       ),
       filters: [
@@ -64,12 +69,12 @@ const Columns = (props: any) => {
         },
       ],
       openSearch: 'dict',
-    },{
-      title: '自增',
+    }, {
+      title: l('global.table.automationAdd'),
       dataIndex: 'autoIncrement',
       render: (_, record) => (
         <>
-          {record.autoIncrement?<CheckSquareOutlined style={{ color:'#1296db'}} />:undefined}
+          {record.autoIncrement ? <CheckSquareOutlined style={{color: '#1296db'}}/> : undefined}
         </>
       ),
       filters: [
@@ -83,12 +88,12 @@ const Columns = (props: any) => {
         },
       ],
       openSearch: 'dict',
-    },{
-      title: '非空',
+    }, {
+      title: l('global.table.isNull'),
       dataIndex: 'nullable',
       render: (_, record) => (
         <>
-          {!record.nullable?<CheckSquareOutlined style={{ color:'#1296db'}} />:undefined}
+          {!record.nullable ? <CheckSquareOutlined style={{color: '#1296db'}}/> : undefined}
         </>
       ),
       filters: [
@@ -102,30 +107,31 @@ const Columns = (props: any) => {
         },
       ],
       openSearch: 'dict',
-    },{
-      title: '默认值',
+    }, {
+      title: l('global.table.default'),
       dataIndex: 'defaultValue',
-    },{
-      title: '精度',
+    }, {
+      title: l('global.table.precision'),
       dataIndex: 'precision',
       isString: false,
-    },{
-      title: '小数范围',
+    }, {
+      title: l('global.table.decimalDigits'),
       dataIndex: 'scale',
       isString: false,
-    },{
-      title: '字符集',
+    }, {
+      title: l('global.table.character'),
       dataIndex: 'characterSet',
-    },{
-      title: '排序规则',
+    }, {
+      title: l('global.table.collationRule'),
       dataIndex: 'collation',
-    },{
-      title: 'Java 类型',
+    }, {
+      title: l('global.table.javaType'),
       dataIndex: 'javaType',
     },]
   return (
     <DTable columns={cols}
-            dataSource={{url:'api/database/listColumns',params:{id:dbId,schemaName:schema,tableName:table}}}/>
+            scroll={scroll}
+            dataSource={{url: 'api/database/listColumns', params: {id: dbId, schemaName: schema, tableName: table}}}/>
   )
 };
 
