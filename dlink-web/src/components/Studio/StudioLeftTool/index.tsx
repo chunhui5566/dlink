@@ -18,34 +18,19 @@
  */
 
 
-import {Empty, Tabs} from "antd";
-import {
-  AppstoreOutlined,
-  BarsOutlined,
-  CloudOutlined,
-  ClusterOutlined,
-  DatabaseOutlined,
-  FunctionOutlined,
-  InsertRowAboveOutlined,
-  MessageOutlined
-} from "@ant-design/icons";
+import {Tabs} from "antd";
+import {AppstoreOutlined, BarsOutlined, InsertRowAboveOutlined, MessageOutlined} from "@ant-design/icons";
 import {StateType} from "@/pages/DataStudio/model";
-import {connect, useIntl} from "umi";
+import {connect} from "umi";
 import StudioTree from "../StudioTree";
 import StudioConnector from "./StudioConnector";
-import StudioDataBase from "./StudioDataBase";
-import StudioCluster from "./StudioCluster";
 import StudioMetaData from "./StudioMetaData";
 import StudioMetaStore from "./StudioMetaStore";
-import StudioFragment from "@/components/Studio/StudioLeftTool/StudioFragment";
+import {l} from "@/utils/intl";
 
 const {TabPane} = Tabs;
 
 const StudioLeftTool = (props: any) => {
-
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
 
   const {toolHeight} = props;
 
@@ -61,23 +46,23 @@ const StudioLeftTool = (props: any) => {
       <TabPane tab={<span><MessageOutlined/> {l('pages.datastudio.label.session')}</span>} key="Connectors">
         <StudioConnector/>
       </TabPane>
-      <TabPane tab={<span><ClusterOutlined/> {l('pages.datastudio.label.cluster')}</span>} key="Cluster">
-        <StudioCluster/>
-      </TabPane>
-      <TabPane tab={<span><DatabaseOutlined/> {l('pages.datastudio.label.datasource')}</span>}
-               key="DataSource">
-        <StudioDataBase/>
-      </TabPane>
+      {/*<TabPane tab={<span><ClusterOutlined/> {l('pages.datastudio.label.cluster')}</span>} key="Cluster">*/}
+      {/*  <StudioCluster/>*/}
+      {/*</TabPane>*/}
+      {/*<TabPane tab={<span><DatabaseOutlined/> {l('pages.datastudio.label.datasource')}</span>}*/}
+      {/*         key="DataSource">*/}
+      {/*  <StudioDataBase/>*/}
+      {/*</TabPane>*/}
       <TabPane tab={<span><AppstoreOutlined/> {l('pages.datastudio.label.meta')}</span>} key="MetaData">
         <StudioMetaData/>
       </TabPane>
-      <TabPane tab={<span><CloudOutlined/> {l('pages.datastudio.label.globalvariable')}</span>}
-               key="fragment">
-        <StudioFragment/>
-      </TabPane>
-      <TabPane tab={<span><FunctionOutlined/> {l('pages.datastudio.label.function')}</span>} key="Function">
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}/>
-      </TabPane>
+      {/*<TabPane tab={<span><CloudOutlined/> {l('pages.datastudio.label.globalvariable')}</span>}*/}
+      {/*         key="fragment">*/}
+      {/*  <StudioFragment/>*/}
+      {/*</TabPane>*/}
+      {/*<TabPane tab={<span><FunctionOutlined/> {l('pages.datastudio.label.function')}</span>} key="Function">*/}
+      {/*  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}/>*/}
+      {/*</TabPane>*/}
     </Tabs>
   );
 };

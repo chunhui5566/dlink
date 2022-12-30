@@ -31,28 +31,26 @@ import {
   DatabaseOutlined,
   DownOutlined,
   ExclamationCircleOutlined,
+  LaptopOutlined,
   ReadOutlined,
   TableOutlined,
 } from '@ant-design/icons';
 import {Scrollbars} from 'react-custom-scrollbars';
 import {TreeDataNode} from '@/components/Studio/StudioTree/Function';
-import Tables from '@/pages/DataBase/Tables';
-import Columns from '@/pages/DataBase/Columns';
+import Tables from '@/pages/RegistrationCenter/DataBase/Tables';
+import Columns from '@/pages/RegistrationCenter/DataBase/Columns';
 import Divider from 'antd/es/divider';
-import Generation from '@/pages/DataBase/Generation';
+import Generation from '@/pages/RegistrationCenter/DataBase/Generation';
 import TableData from '@/pages/DataCenter/MetaData/TableData';
-import {FALLBACK, getDBImage} from "@/pages/DataBase/DB";
+import {FALLBACK, getDBImage} from "@/pages/RegistrationCenter/DataBase/DB";
 import Meta from "antd/lib/card/Meta";
-import {useIntl} from 'umi';
+import {l} from "@/utils/intl";
+import Console from './Console';
 
 const {DirectoryTree} = Tree;
 const {TabPane} = Tabs;
 
 const MetaDataContainer: React.FC<{}> = (props: any) => {
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
-
 
   let [database, setDatabase] = useState<[{
     id: number,
@@ -75,10 +73,10 @@ const MetaDataContainer: React.FC<{}> = (props: any) => {
   }]);
   const [databaseId, setDatabaseId] = useState<number>();
   const [treeData, setTreeData] = useState<{ tables: [], updateTime: string }>({tables: [], updateTime: "none"});
+  const [schemeList, setSchemeList] = useState<{}>({});
   const [row, setRow] = useState<TreeDataNode>();
   const [loadingDatabase, setloadingDatabase] = useState(false);
   const [tableChecked, setTableChecked] = useState(true);
-  const [dataBaseChecked, setDatabaseChecked] = useState(false);
 
   const fetchDatabaseList = async () => {
     const res = getData('api/database/listEnabledAll');
@@ -94,7 +92,7 @@ const MetaDataContainer: React.FC<{}> = (props: any) => {
     const res = showMetaDataTable(databaseId);
     await res.then((result) => {
       let tables = result.datas;
-
+      setSchemeList(tables)
       if (tables) {
         for (let i = 0; i < tables.length; i++) {
           tables[i].title = tables[i].name;
@@ -199,7 +197,7 @@ const MetaDataContainer: React.FC<{}> = (props: any) => {
                         refeshDataBase(databaseId)
                         setTableChecked(true)
                       }}
-              >{l('global.table.refresh')}</Button>
+              >{l('button.refresh')}</Button>
             </div>
             <div>{item.alias}</div>
           </div>
@@ -310,6 +308,22 @@ const MetaDataContainer: React.FC<{}> = (props: any) => {
                   >
                     {row ? (
                       <Generation dbId={databaseId} schema={row.schema} table={row.table}/>
+                    ) : (
+                      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}/>
+                    )}
+                  </TabPane>
+
+                  <TabPane disabled={tableChecked}
+                           tab={
+                             <span>
+                          <LaptopOutlined />
+                               {l('pages.metadata.Console')}
+                        </span>
+                           }
+                           key="Console"
+                  >
+                    {schemeList ? (
+                      <Console dbId={databaseId} schemeList={schemeList} database={database} />
                     ) : (
                       <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}/>
                     )}

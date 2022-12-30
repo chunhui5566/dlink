@@ -27,18 +27,16 @@ import {handleOption, queryData} from "@/components/Common/crud";
 import {Scrollbars} from "react-custom-scrollbars";
 import {TaskHistoryTableListItem} from "@/components/Studio/StudioRightTool/StudioHistory/data";
 import {StateType} from "@/pages/DataStudio/model";
-import {connect, useIntl} from "umi";
+import {connect} from "umi";
 import moment from "moment";
 import {MonacoDiffEditor} from "react-monaco-editor";
+import {l} from "@/utils/intl";
 
 
 const url = '/api/task/version';
 
 
 const StudioHistory = (props: any) => {
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
 
   const {current, toolHeight} = props;
   const [row, setRow] = useState<TaskHistoryTableListItem>();
@@ -57,15 +55,21 @@ const StudioHistory = (props: any) => {
 
   const VersionDiffForm = () => {
 
-    let leftTitle = "Version：【" + versionDiffRow?.versionId + "】   创建时间: 【" + (moment(versionDiffRow?.createTime).format('YYYY-MM-DD HH:mm:ss')) + "】";
-    let rightTitle = "Version：【当前编辑版本】 创建时间: 【" + (moment(current?.task?.createTime).format('YYYY-MM-DD HH:mm:ss')) + "】 最后更新时间: 【" + (moment(current?.task?.updateTime).format('YYYY-MM-DD HH:mm:ss')) + "】"
+    let leftTitle = l('pages.datastudio.label.version.leftTitle','',{
+      versionId: versionDiffRow?.versionId,
+      createTime: (moment(versionDiffRow?.createTime).format('YYYY-MM-DD HH:mm:ss')),
+    })
 
+    let rightTitle = l('pages.datastudio.label.version.rightTitle','',{
+      createTime: (moment(current?.task?.createTime).format('YYYY-MM-DD HH:mm:ss')),
+      updateTime: (moment(current?.task?.updateTime).format('YYYY-MM-DD HH:mm:ss')),
+    })
     let originalValue = versionDiffRow?.statement;
     let currentValue = current?.task?.statement;
 
     return (
       <>
-        <Modal title={"Version Diff"} visible={versionDiffVisible} destroyOnClose={true} width={"85%"}
+        <Modal title={l('pages.datastudio.label.version.diff')} visible={versionDiffVisible} destroyOnClose={true} width={"85%"}
                bodyStyle={{height: "700px"}}
                onCancel={() => {
                  cancelHandle();
@@ -92,7 +96,8 @@ const StudioHistory = (props: any) => {
                 readOnly: true,
                 selectOnLineNumbers: true,
                 lineDecorationsWidth: 20,
-                mouseWheelZoom: true
+                mouseWheelZoom: true,
+                automaticLayout:true,
               }} language={"sql"} theme={"vs-dark"} original={originalValue} value={currentValue}/>
             </React.StrictMode>
           </Scrollbars>
@@ -109,7 +114,7 @@ const StudioHistory = (props: any) => {
     //   hideInSearch: false,
     // },
     {
-      title: '版本ID',
+      title: l('pages.datastudio.label.version.id'),
       dataIndex: 'versionId',
       sorter: true,
       hideInForm: true,
@@ -132,11 +137,11 @@ const StudioHistory = (props: any) => {
       align: "center",
       render: (text, record, index) => (
         <>
-          <Button type="link" onClick={() => onRollBackVersion(record)}>回滚</Button>
-          <Button type="link" title={"只和当前编辑器内的内容对比"} onClick={() => {
+          <Button type="link" onClick={() => onRollBackVersion(record)}>{l('pages.datastudio.label.version.rollback')}</Button>
+          <Button type="link" title={l('pages.datastudio.label.version.diff.tip')} onClick={() => {
             setVersionDiffRow(record)
             setVersionDiffVisible(true)
-          }}>版本对比</Button>
+          }}>{l('pages.datastudio.label.version.diff')}</Button>
         </>
 
       )
@@ -146,15 +151,15 @@ const StudioHistory = (props: any) => {
 
   const onRollBackVersion = (row: TaskHistoryTableListItem) => {
     Modal.confirm({
-      title: '回滚Flink SQL版本',
-      content: `确定回滚Flink SQL版本至【${row.versionId}】吗？`,
+      title: l('pages.datastudio.label.version.rollback.flinksql'),
+      content: l('pages.datastudio.label.version.rollback.flinksqlConfirm','',{versionId: row.versionId }),
       okText: l('button.confirm'),
       cancelText: l('button.cancel'),
       onOk: async () => {
         const TaskHistoryRollbackItem = {
           id: current.key, versionId: row.versionId
         }
-        await handleOption('api/task/rollbackTask', "回滚Flink SQL版本", TaskHistoryRollbackItem);
+        await handleOption('api/task/rollbackTask', l('pages.datastudio.label.version.rollback.flinksql'), TaskHistoryRollbackItem);
         actionRef.current?.reloadAndRest?.();
       }
     });
@@ -165,7 +170,7 @@ const StudioHistory = (props: any) => {
       <Row>
         <Col span={24}>
           <div style={{float: "right"}}>
-            <Tooltip title="最小化">
+            <Tooltip title={l('component.minimize')}>
               <Button
                 type="text"
                 icon={<MinusSquareOutlined/>}

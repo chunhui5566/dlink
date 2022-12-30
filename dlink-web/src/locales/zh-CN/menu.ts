@@ -36,7 +36,7 @@ export default {
 
   'menu.registration': '注册中心',
   'menu.registration.cluster': '集群管理',
-  'menu.registration.cluster.clusterInstance': '集群实例管理',
+  'menu.registration.cluster.clusterInstance': 'Flink 实例管理',
   'menu.registration.cluster.clusterConfiguration': '集群配置管理',
   'menu.registration.jar': 'Jar 管理',
   'menu.registration.database': '数据源管理',
@@ -54,7 +54,7 @@ export default {
 
   'menu.settings': '配置中心',
   'menu.settings.flinkConfig': 'Flink 配置',
-  'menu.settings.udfTemplate': 'udf模板配置',
+  'menu.settings.udfTemplate': 'UDF 模板配置',
   'menu.settings.systemInfo': '系统信息',
   'menu.settings.processList': '进程列表',
 

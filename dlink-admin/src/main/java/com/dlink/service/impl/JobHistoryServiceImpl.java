@@ -30,6 +30,8 @@ import com.dlink.utils.JSONUtil;
 
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -43,6 +45,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 @Service
 public class JobHistoryServiceImpl extends SuperServiceImpl<JobHistoryMapper, JobHistory> implements JobHistoryService {
 
+    private static final Logger log = LoggerFactory.getLogger(JobHistoryServiceImpl.class);
+
     @Override
     public JobHistory getByIdWithoutTenant(Integer id) {
         return baseMapper.getByIdWithoutTenant(id);
@@ -50,7 +54,7 @@ public class JobHistoryServiceImpl extends SuperServiceImpl<JobHistoryMapper, Jo
 
     @Override
     public JobHistory getJobHistory(Integer id) {
-        return getJobHistoryInfo(getById(id));
+        return getJobHistoryInfo(baseMapper.getByIdWithoutTenant(id));
     }
 
     @Override
@@ -98,7 +102,7 @@ public class JobHistoryServiceImpl extends SuperServiceImpl<JobHistoryMapper, Jo
         jobHistory.setId(id);
         try {
             JsonNode jobInfo = FlinkAPI.build(jobManagerHost).getJobInfo(jobId);
-            if (jobInfo.has(FlinkRestResultConstant.ERRORS)) {
+            if (Asserts.isNull(jobInfo) || jobInfo.has(FlinkRestResultConstant.ERRORS)) {
                 final JobHistory dbHistory = getById(id);
                 if (Objects.nonNull(dbHistory)) {
                     jobHistory = dbHistory;
@@ -122,6 +126,8 @@ public class JobHistoryServiceImpl extends SuperServiceImpl<JobHistoryMapper, Jo
                  */
             }
         } catch (Exception e) {
+            log.error("Get flink job info failed !! historyId is {}, jobManagerHost is :{}, jobId is :{}",
+                    id, jobManagerHost, jobId);
             e.printStackTrace();
         }
         return jobHistory;

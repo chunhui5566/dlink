@@ -26,15 +26,12 @@ import ProDescriptions from '@ant-design/pro-descriptions';
 import {queryData} from "@/components/Common/crud";
 import {SavePointTableListItem} from "@/components/Studio/StudioRightTool/StudioSavePoint/data";
 import {StateType} from "@/pages/DataStudio/model";
-import {connect, useIntl} from "umi";
+import {connect} from "umi";
 import {Scrollbars} from 'react-custom-scrollbars';
+import {l} from "@/utils/intl";
 
 const url = '/api/savepoints';
 const StudioSavePoint = (props: any) => {
-
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
 
   const {current, toolHeight, dispatch} = props;
   const [row, setRow] = useState<SavePointTableListItem>();
@@ -45,42 +42,10 @@ const StudioSavePoint = (props: any) => {
   }
 
   const columns: ProColumns<SavePointTableListItem>[] = [
+
     {
-      title: '名称',
-      dataIndex: 'name',
-      sorter: true,
-      hideInTable: true,
-      hideInForm: true,
-      hideInSearch: true,
-      /*render: (dom, entity) => {
-        return <a onClick={() => setRow(entity)}>{dom}</a>;
-      },*/
-    },
-    {
-      title: 'id',
-      dataIndex: 'id',
-      hideInTable: true,
-      hideInForm: true,
-      hideInSearch: true,
-    },
-    {
-      title: '作业ID',
-      dataIndex: 'taskId',
-      hideInTable: true,
-      hideInForm: true,
-      hideInSearch: true,
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      hideInTable: true,
-      hideInForm: true,
-      hideInSearch: true,
-    },
-    {
-      title: '路径',
+      title: l('pages.task.savePointPath'),
       dataIndex: 'path',
-      hideInTable: true,
       hideInForm: true,
       hideInSearch: true,
     },
@@ -102,7 +67,7 @@ const StudioSavePoint = (props: any) => {
       <Row>
         <Col span={24}>
           <div style={{float: "right"}}>
-            <Tooltip title="最小化">
+            <Tooltip title={l('component.minimize')}>
               <Button
                 type="text"
                 icon={<MinusSquareOutlined/>}

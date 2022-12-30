@@ -56,9 +56,9 @@ import java.util.Properties;
  * @author wenmo
  * @since 2022/4/12 21:29
  **/
-public class KafkaSinkBuilder extends AbstractSinkBuilder implements SinkBuilder, Serializable {
+public class KafkaSinkBuilder extends AbstractSinkBuilder implements Serializable {
 
-    private static final String KEY_WORD = "datastream-kafka";
+    public static final String KEY_WORD = "datastream-kafka";
 
     public KafkaSinkBuilder() {
     }
@@ -69,11 +69,11 @@ public class KafkaSinkBuilder extends AbstractSinkBuilder implements SinkBuilder
 
     @Override
     public void addSink(
-        StreamExecutionEnvironment env,
-        DataStream<RowData> rowDataDataStream,
-        Table table,
-        List<String> columnNameList,
-        List<LogicalType> columnTypeList) {
+            StreamExecutionEnvironment env,
+            DataStream<RowData> rowDataDataStream,
+            Table table,
+            List<String> columnNameList,
+            List<LogicalType> columnTypeList) {
 
     }
 
@@ -89,28 +89,30 @@ public class KafkaSinkBuilder extends AbstractSinkBuilder implements SinkBuilder
 
     @Override
     public DataStreamSource build(
-        CDCBuilder cdcBuilder,
-        StreamExecutionEnvironment env,
-        CustomTableEnvironment customTableEnvironment,
-        DataStreamSource<String> dataStreamSource) {
+            CDCBuilder cdcBuilder,
+            StreamExecutionEnvironment env,
+            CustomTableEnvironment customTableEnvironment,
+            DataStreamSource<String> dataStreamSource) {
         // 解决kafka的 properties 配置未加载问题
         Properties kafkaProducerConfig = getProperties();
         if (Asserts.isNotNullString(config.getSink().get("topic"))) {
-            KafkaSink<String> kafkaSink = KafkaSink.<String>builder().setBootstrapServers(config.getSink().get("brokers"))
+            KafkaSink<String> kafkaSink = KafkaSink.<String>builder()
+                    .setBootstrapServers(config.getSink().get("brokers"))
                     .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                             .setTopic(config.getSink().get("topic"))
                             .setValueSerializationSchema(new SimpleStringSchema())
-                            .build()
-                    )
+                            .build())
                     .setDeliverGuarantee(DeliveryGuarantee.valueOf(env.getCheckpointingMode().name()))
                     .setKafkaProducerConfig(kafkaProducerConfig)
+                    .setTransactionalIdPrefix(kafkaProducerConfig.getProperty("transactional.id"))
                     .build();
             dataStreamSource.sinkTo(kafkaSink);
         } else {
             Map<Table, OutputTag<String>> tagMap = new HashMap<>();
             Map<String, Table> tableMap = new HashMap<>();
             ObjectMapper objectMapper = new ObjectMapper();
-            SingleOutputStreamOperator<Map> mapOperator = dataStreamSource.map(x -> objectMapper.readValue(x,Map.class)).returns(Map.class);
+            SingleOutputStreamOperator<Map> mapOperator = dataStreamSource
+                    .map(x -> objectMapper.readValue(x, Map.class)).returns(Map.class);
             final List<Schema> schemaList = config.getSchemaList();
             final String schemaFieldName = config.getSchemaFieldName();
             if (Asserts.isNotNullCollection(schemaList)) {
@@ -126,12 +128,15 @@ public class KafkaSinkBuilder extends AbstractSinkBuilder implements SinkBuilder
                 }
 
                 SingleOutputStreamOperator<String> process = mapOperator.process(new ProcessFunction<Map, String>() {
+
                     @Override
-                    public void processElement(Map map, ProcessFunction<Map, String>.Context ctx, Collector<String> out) throws Exception {
+                    public void processElement(Map map, ProcessFunction<Map, String>.Context ctx, Collector<String> out)
+                            throws Exception {
                         LinkedHashMap source = (LinkedHashMap) map.get("source");
                         try {
                             String result = objectMapper.writeValueAsString(map);
-                            Table table = tableMap.get(source.get(schemaFieldName).toString() + "." + source.get("table").toString());
+                            Table table = tableMap
+                                    .get(source.get(schemaFieldName).toString() + "." + source.get("table").toString());
                             OutputTag<String> outputTag = tagMap.get(table);
                             ctx.output(outputTag, result);
                         } catch (Exception e) {
@@ -141,14 +146,15 @@ public class KafkaSinkBuilder extends AbstractSinkBuilder implements SinkBuilder
                 });
                 tagMap.forEach((k, v) -> {
                     String topic = getSinkTableName(k);
-                    KafkaSink<String> kafkaSink = KafkaSink.<String>builder().setBootstrapServers(config.getSink().get("brokers"))
+                    KafkaSink<String> kafkaSink = KafkaSink.<String>builder()
+                            .setBootstrapServers(config.getSink().get("brokers"))
                             .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                                     .setTopic(topic)
                                     .setValueSerializationSchema(new SimpleStringSchema())
-                                    .build()
-                            )
+                                    .build())
                             .setDeliverGuarantee(DeliveryGuarantee.valueOf(env.getCheckpointingMode().name()))
                             .setKafkaProducerConfig(kafkaProducerConfig)
+                            .setTransactionalIdPrefix(kafkaProducerConfig.getProperty("transactional.id") + "-" + topic)
                             .build();
                     process.getSideOutput(v).rebalance().sinkTo(kafkaSink).name(topic);
                 });

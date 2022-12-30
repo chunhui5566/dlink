@@ -18,19 +18,17 @@
  */
 
 
-import {connect, useIntl} from "umi";
+import {connect} from "umi";
 import {StateType} from "@/pages/DataStudio/model";
 import {Button, Col, Form, Input, Row, Tooltip} from "antd";
 import {MinusSquareOutlined} from "@ant-design/icons";
 import styles from "./index.less";
 import {useEffect} from "react";
-import {JarStateType} from "@/pages/Jar/model";
+import {JarStateType} from "@/pages/RegistrationCenter/Jar/model";
 import {Scrollbars} from "react-custom-scrollbars";
+import {l} from "@/utils/intl";
 
 const StudioUDFInfo = (props: any) => {
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
 
   const {current, form, toolHeight} = props;
 
@@ -43,7 +41,7 @@ const StudioUDFInfo = (props: any) => {
       <Row>
         <Col span={24}>
           <div style={{float: "right"}}>
-            <Tooltip title="最小化">
+            <Tooltip title={l('component.minimize')}>
               <Button
                 type="text"
                 icon={<MinusSquareOutlined/>}
@@ -61,9 +59,9 @@ const StudioUDFInfo = (props: any) => {
           <Row>
             <Col span={24}>
               <Form.Item
-                label="类名" className={styles.form_item} name="savePointPath"
+                label={l('pages.datastudio.label.udfInfo.classname')} className={styles.form_item} name="savePointPath"
               >
-                <Input readOnly={true} placeholder="自动识别"/>
+                <Input readOnly={true} placeholder={l('pages.datastudio.label.udfInfo.auto')}/>
               </Form.Item>
             </Col>
           </Row>

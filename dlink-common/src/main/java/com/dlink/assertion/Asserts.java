@@ -21,8 +21,10 @@ package com.dlink.assertion;
 
 import com.dlink.exception.RunTimeException;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Asserts
@@ -43,18 +45,16 @@ public class Asserts {
         return object == null;
     }
 
+    public static boolean isAllNotNull(Object... object) {
+        return Arrays.stream(object).allMatch(Asserts::isNotNull);
+    }
+
     public static boolean isNullString(String str) {
-        return isNull(str) || "".equals(str);
+        return isNull(str) || str.isEmpty();
     }
 
     public static boolean isAllNullString(String... str) {
-        boolean isNull = true;
-        for (String item : str) {
-            if (isNotNullString(item)) {
-                isNull = false;
-            }
-        }
-        return isNull;
+        return Arrays.stream(str).allMatch(Asserts::isNullString);
     }
 
     public static boolean isNotNullString(String str) {
@@ -62,33 +62,15 @@ public class Asserts {
     }
 
     public static boolean isAllNotNullString(String... str) {
-        boolean isNotNull = true;
-        for (String item : str) {
-            if (isNullString(item)) {
-                isNotNull = false;
-            }
-        }
-        return isNotNull;
+        return Arrays.stream(str).noneMatch(Asserts::isNullString);
     }
 
     public static boolean isEquals(String str1, String str2) {
-        if (isNull(str1) && isNull(str2)) {
-            return true;
-        } else if (isNull(str1) || isNull(str2)) {
-            return false;
-        } else {
-            return str1.equals(str2);
-        }
+        return Objects.equals(str1, str2);
     }
 
     public static boolean isEqualsIgnoreCase(String str1, String str2) {
-        if (isNull(str1) && isNull(str2)) {
-            return true;
-        } else if (isNull(str1) || isNull(str2)) {
-            return false;
-        } else {
-            return str1.equalsIgnoreCase(str2);
-        }
+        return (str1 == null && str2 == null) || (str1 != null && str1.equalsIgnoreCase(str2));
     }
 
     public static boolean isNullCollection(Collection<?> collection) {
@@ -100,7 +82,7 @@ public class Asserts {
     }
 
     public static boolean isNullMap(Map<?, ?> map) {
-        return isNull(map) || map.size() == 0;
+        return isNull(map) || map.isEmpty();
     }
 
     public static boolean isNotNullMap(Map<?, ?> map) {

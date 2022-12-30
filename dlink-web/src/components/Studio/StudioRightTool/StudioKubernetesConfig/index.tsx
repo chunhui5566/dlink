@@ -18,30 +18,53 @@
  */
 
 
-import {connect, useIntl} from "umi";
+import {connect} from "umi";
 import {StateType} from "@/pages/DataStudio/model";
-import {Button, Col, Form, Input, Row, Select, Tooltip} from "antd";
+import {Button, Col, Form, Input, InputNumber, Row, Select, Tag, Tooltip} from "antd";
 import {MinusSquareOutlined} from "@ant-design/icons";
 import styles from "./index.less";
-import {useEffect} from "react";
-import {JarStateType} from "@/pages/Jar/model";
+import React, {useEffect} from "react";
+import {JarStateType} from "@/pages/RegistrationCenter/Jar/model";
 import {Scrollbars} from "react-custom-scrollbars";
 import {RUN_MODE} from "@/components/Studio/conf";
-import {AlertStateType} from "@/pages/AlertInstance/model";
+import {AlertStateType} from "@/pages/RegistrationCenter/AlertManage/AlertInstance/model";
+import {l} from "@/utils/intl";
 
 const {Option} = Select;
 
 const StudioKubernetesConfig = (props: any) => {
+  const {
+    sessionCluster,
+    clusterConfiguration,
+    current,
+    form,
+    dispatch,
+    tabs,
+    currentSession,
+    env,
+    group,
+    toolHeight
+  } = props;
 
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
-
-  const {current, form, dispatch, tabs, group, toolHeight} = props;
+  const getClusterConfigurationOptions = () => {
+    const itemList = [];
+    for (const item of clusterConfiguration) {
+      const tag = (<><Tag color={item.enabled ? "processing" : "error"}>{item.type}</Tag>{item.alias === "" ? item.name : item.alias}</>);
+      //opeartor mode can not have normal application config
+      if (current.task.type == 'kubernetes-application-operator' && item.type == 'FlinkKubernetesOperator'){
+        itemList.push(<Option key={item.id} value={item.id} label={tag}>{tag}</Option>)
+      }else if (current.task.type != 'kubernetes-application-operator'  && item.type != 'FlinkKubernetesOperator'){
+        //if not operator mode , add it normal
+        itemList.push(<Option key={item.id} value={item.id} label={tag}>{tag}</Option>)
+      }
+    }
+    return itemList;
+  };
 
 
   const getGroupOptions = () => {
-    const itemList = [<Option key={0} value={0} label='禁用'>
-      禁用
+    const itemList = [<Option key={0} value={0} label={l('button.disable')}>
+      {l('button.disable')}
     </Option>];
     for (const item of group) {
       itemList.push(<Option key={item.id} value={item.id} label={item.name}>
@@ -52,8 +75,6 @@ const StudioKubernetesConfig = (props: any) => {
   };
 
   useEffect(() => {
-    //Force set type k8s
-    current.task.type = RUN_MODE.KUBERNETES_APPLICATION
     form.setFieldsValue(current.task);
   }, [current.task]);
 
@@ -79,7 +100,7 @@ const StudioKubernetesConfig = (props: any) => {
       <Row>
         <Col span={24}>
           <div style={{float: "right"}}>
-            <Tooltip title="最小化">
+            <Tooltip title={l('component.minimize')}>
               <Button
                 type="text"
                 icon={<MinusSquareOutlined/>}
@@ -96,31 +117,72 @@ const StudioKubernetesConfig = (props: any) => {
           onValuesChange={onValuesChange}
         >
           <Form.Item
-            label="SavePoint策略" className={styles.form_item} name="savePointStrategy"
-            tooltip='指定 SavePoint策略，默认为禁用'
+            label= {l('global.table.execmode')} className={styles.form_item} name="type"
+            tooltip={l('pages.datastudio.label.jobConfig.execmode.k8s.tip')}
+          >
+            <Select defaultValue={RUN_MODE.KUBERNETES_APPLICATION} value={RUN_MODE.KUBERNETES_APPLICATION}>
+              <Option value={RUN_MODE.KUBERNETES_APPLICATION}>Kubernetes Application Native</Option>
+            </Select>
+          </Form.Item>
+
+          <Row>
+            <Col span={24}>
+              <Form.Item label={l('pages.datastudio.label.jobConfig.clusterConfig')}
+                         tooltip={l('pages.datastudio.label.jobConfig.clusterConfig.tip1', '', {
+                           type: current.task.type
+                         })}
+                         name="clusterConfigurationId"
+                         className={styles.form_item}>
+                <Select
+                  style={{width: '100%'}}
+                  placeholder={l('pages.datastudio.label.jobConfig.clusterConfig.tip2')}
+                  optionLabelProp="label"
+                >
+                  {getClusterConfigurationOptions()}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col span={12}>
+              <Form.Item
+                label={l('pages.datastudio.label.jobConfig.parallelism')} className={styles.form_item}
+                name="parallelism"
+                tooltip={l('pages.datastudio.label.jobConfig.parallelism.tip')}
+              >
+                <InputNumber min={1} max={9999} defaultValue={1}/>
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item
+            label={l('pages.datastudio.label.jobConfig.savePointStrategy')} className={styles.form_item}
+            name="savePointStrategy"
+            tooltip={l('pages.datastudio.label.jobConfig.savePointStrategy.tip')}
           >
             <Select defaultValue={0}>
-              <Option value={0}>禁用</Option>
-              <Option value={1}>最近一次</Option>
-              <Option value={2}>最早一次</Option>
-              <Option value={3}>指定一次</Option>
+              <Option value={0}>{l('global.savepoint.strategy.disabled')}</Option>
+              <Option value={1}>{l('global.savepoint.strategy.latest')}</Option>
+              <Option value={2}>{l('global.savepoint.strategy.earliest')}</Option>
+              <Option value={3}>{l('global.savepoint.strategy.custom')}</Option>
             </Select>
           </Form.Item>
           {current.task.savePointStrategy === 3 ?
             (<Form.Item
-              label="SavePointPath" className={styles.form_item} name="savePointPath"
-              tooltip='从SavePointPath恢复Flink任务'
+              label={l('pages.datastudio.label.jobConfig.savePointpath')} className={styles.form_item}
+              name="savePointPath"
+              tooltip={l('pages.datastudio.label.jobConfig.savePointpath.tip1')}
             >
-              <Input placeholder="hdfs://..."/>
+              <Input placeholder={l('pages.datastudio.label.jobConfig.savePointpath.tip2')}/>
             </Form.Item>) : ''
           }
           <Row>
             <Col span={24}>
-              <Form.Item label="报警组" tooltip={`选择报警组`} name="alertGroupId"
+              <Form.Item label={l('pages.datastudio.label.jobConfig.alertGroup')}  name="alertGroupId"
                          className={styles.form_item}>
                 <Select
                   style={{width: '100%'}}
-                  placeholder="选择报警组"
+                  placeholder={l('pages.datastudio.label.jobConfig.alertGroup.tip')}
                   optionLabelProp="label"
                   defaultValue={0}
                 >

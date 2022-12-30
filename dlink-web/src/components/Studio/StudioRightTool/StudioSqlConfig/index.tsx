@@ -18,21 +18,17 @@
  */
 
 
-import {connect, useIntl} from "umi";
+import {connect} from "umi";
 import {StateType} from "@/pages/DataStudio/model";
 import {Button, Col, Form, InputNumber, Row, Select, Tag, Tooltip,} from "antd";
 import {MinusSquareOutlined} from "@ant-design/icons";
 import styles from "./index.less";
 import {Scrollbars} from 'react-custom-scrollbars';
+import {l} from "@/utils/intl";
 
 const {Option} = Select;
 
 const StudioSqlConfig = (props: any) => {
-
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
-
 
   const {current, form, dispatch, tabs, database, toolHeight} = props;
 
@@ -75,7 +71,7 @@ const StudioSqlConfig = (props: any) => {
       <Row>
         <Col span={24}>
           <div style={{float: "right"}}>
-            <Tooltip title="最小化">
+            <Tooltip title={l('component.minimize')}>
               <Button
                 type="text"
                 icon={<MinusSquareOutlined/>}
@@ -93,12 +89,12 @@ const StudioSqlConfig = (props: any) => {
         >
           <Row>
             <Col span={24}>
-              <Form.Item label={l('pages.datastudio.label.datasource')} tooltip={`选择 Sql 语句执行的数据源`}
+              <Form.Item label={l('pages.datastudio.label.datasource')} tooltip={l('pages.datastudio.label.execConfig.selectDatabase.tip')}
                          name="databaseId"
                          className={styles.form_item}>
                 <Select
                   style={{width: '100%'}}
-                  placeholder="选择数据源"
+                  placeholder={l('pages.datastudio.label.execConfig.selectDatabase')}
                   optionLabelProp="label"
                 >
                   {getDataBaseOptions()}
@@ -108,7 +104,7 @@ const StudioSqlConfig = (props: any) => {
             <Col span={24}>
               <Form.Item
                 label={l('pages.datastudio.label.maxrows')} className={styles.form_item} name="maxRowNum"
-                tooltip='预览数据的最大行数'
+                tooltip={l('pages.datastudio.label.execConfig.preview.data.tip')}
               >
                 <InputNumber min={1} max={9999} defaultValue={100}/>
               </Form.Item>

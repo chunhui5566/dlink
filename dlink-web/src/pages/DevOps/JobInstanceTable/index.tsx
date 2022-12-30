@@ -18,7 +18,7 @@
  */
 
 
-import {history, useIntl} from 'umi';
+import {history} from 'umi';
 import {queryData} from "@/components/Common/crud";
 import {useEffect, useRef, useState} from "react";
 import type {ActionType, ProColumns} from '@ant-design/pro-table';
@@ -32,6 +32,8 @@ import JobLifeCycle, {JOB_LIFE_CYCLE} from "@/components/Common/JobLifeCycle";
 import OpsStatusModal from "@/pages/DevOps/OpsStatusModel/index";
 import StatusDetailedModal from "@/pages/DevOps/StatusDetailedModel/index";
 import {onClickOperatingTask, queryAllCatalogue, queryOneClickOperatingTaskStatus} from "@/pages/DevOps/service";
+import {l} from "@/utils/intl";
+import {parseSecondStr} from "@/components/Common/function";
 
 
 const OPS_STATUS_COLOR = {
@@ -43,9 +45,6 @@ const url = '/api/jobInstance';
 
 
 const JobInstanceTable = (props: any) => {
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
 
 
   const {status, activeKey, isHistory, taskStatus} = props;
@@ -191,7 +190,7 @@ const JobInstanceTable = (props: any) => {
         },
       },
     }, {
-      title: l('global.table.instanceName'),
+      title: l('pages.rc.cluster.instanceName'),
       dataIndex: "clusterAlias",
       sorter: true,
     }, {
@@ -230,10 +229,11 @@ const JobInstanceTable = (props: any) => {
       hideInSearch: true,
     }, {
       title: l('global.table.useTime'),
-      dataIndex: "duration",
       sorter: true,
-      valueType: 'second',
       hideInSearch: true,
+      render: (_, row) => {
+        return parseSecondStr(row.duration)
+      }
     },];
     return columns;
   };
@@ -245,7 +245,7 @@ const JobInstanceTable = (props: any) => {
         color={taskStatus?.onlineStatus ? OPS_STATUS_COLOR.padding : OPS_STATUS_COLOR.success} text={<a
         onClick={() => {
           onStatusChange('1')
-        }}>{l('pages.devops.lable.online')}</a>}/>,
+        }}>{l('pages.devops.lable.allonline')}</a>}/>,
         <a
           style={{color: taskStatus?.onlineStatus ? '#FF0000' : '#1E90FF'}}
           onClick={() => {
@@ -254,7 +254,7 @@ const JobInstanceTable = (props: any) => {
         <Badge color={taskStatus?.offlineStatus ? OPS_STATUS_COLOR.padding : OPS_STATUS_COLOR.success}
                text={<a onClick={() => {
                  onStatusChange('2')
-               }}>{l('pages.devops.lable.offline')}</a>}/>, <a
+               }}>{l('pages.devops.lable.alloffline')}</a>}/>, <a
           style={{color: taskStatus?.onlineStatus ? '#FF0000' : '#1E90FF'}}
           onClick={() => {
             onStatusDetailed('2')

@@ -34,8 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import com.ververica.cdc.connectors.base.options.StartupOptions;
 import com.ververica.cdc.connectors.oracle.OracleSource;
-import com.ververica.cdc.connectors.oracle.table.StartupOptions;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 
 /**
@@ -46,7 +46,7 @@ import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
  **/
 public class OracleCDCBuilder extends AbstractCDCBuilder implements CDCBuilder {
 
-    private static final String KEY_WORD = "oracle-cdc";
+    public static final String KEY_WORD = "oracle-cdc";
     private static final String METADATA_TYPE = "Oracle";
 
     public OracleCDCBuilder() {
@@ -75,11 +75,11 @@ public class OracleCDCBuilder extends AbstractCDCBuilder implements CDCBuilder {
             }
         }
         OracleSource.Builder<String> sourceBuilder = OracleSource.<String>builder()
-            .hostname(config.getHostname())
-            .port(config.getPort())
-            .username(config.getUsername())
-            .password(config.getPassword())
-            .database(config.getDatabase());
+                .hostname(config.getHostname())
+                .port(config.getPort())
+                .username(config.getUsername())
+                .password(config.getPassword())
+                .database(config.getDatabase());
         String schema = config.getSchema();
         if (Asserts.isNotNullString(schema)) {
             String[] schemas = schema.split(FlinkParamConstant.SPLIT);
@@ -130,5 +130,10 @@ public class OracleCDCBuilder extends AbstractCDCBuilder implements CDCBuilder {
             allConfigList.put(schema, configMap);
         }
         return allConfigList;
+    }
+
+    @Override
+    public String getSchema() {
+        return config.getSchema();
     }
 }

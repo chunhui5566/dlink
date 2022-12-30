@@ -19,14 +19,10 @@
 
 package com.dlink.service;
 
-import com.dlink.gateway.GatewayType;
-import com.dlink.model.UDFPath;
-
 /**
  * @author ZackYoung
  * @since 0.6.8
  */
 public interface UDFService {
 
-    UDFPath initUDF(String statement, GatewayType gatewayType);
 }

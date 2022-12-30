@@ -19,7 +19,7 @@
 
 import React from 'react';
 import {Button, Modal, Table, Tooltip} from 'antd'
-import {useIntl} from 'umi';
+import {l} from "@/utils/intl";
 
 interface IStatusDetailedModal {
   statusDetailedVisible: boolean;
@@ -29,37 +29,32 @@ interface IStatusDetailedModal {
 }
 
 export const OpsStatusTitle = {
-  '1': '上线明细列表',
-  '0': '下线明细列表'
+  '1': l('pages.devops.lable.online.list'),
+  '0': l('pages.devops.lable.offline.list')
 }
 
 
 const StatusDetailedModal: React.FC<IStatusDetailedModal> = (props): React.ReactElement => {
   const {statusDetailedVisible, statusDetailedList, opsStatus, onCancelStatusDetailed} = props
 
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
-
-
   const columns = [{
-    title: '名称',
+    title: l('pages.devops.lable.line.name'),
     dataIndex: 'name'
   }, {
-    title: '状态',
+    title: l('pages.devops.lable.line.status'),
     dataIndex: 'status'
   }, {
-    title: '结果',
+    title: l('pages.devops.lable.line.code'),
     dataIndex: 'code'
   }, {
-    title: '信息',
+    title: l('pages.devops.lable.line.message'),
     dataIndex: 'message',
     render: (text: string) => <Tooltip overlayInnerStyle={{width: '800px'}} placement="bottom" title={text}>
       <div style={{width: '150px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}}>{text}</div>
     </Tooltip>,
     width: 150
   }, {
-    title: '点位配置选择',
+    title: l('pages.devops.lable.line.piontConfig'),
     dataIndex: 'taskOperatingSavepointSelect',
   }].filter((item) => {
     if (item.dataIndex === 'taskOperatingSavepointSelect') {
@@ -74,7 +69,7 @@ const StatusDetailedModal: React.FC<IStatusDetailedModal> = (props): React.React
   })
 
   const onFooter = () => <Button onClick={() => onCancelStatusDetailed()}>
-    返回
+    {l('button.back')}
   </Button>
 
   return (

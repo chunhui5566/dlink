@@ -23,6 +23,7 @@ export default {
   'button.confirm': 'Confirm',
   'button.cancel': 'Cancel',
   'button.finish': 'Finish',
+  'button.back': 'Back',
   'button.save': 'Save',
   'button.delete': 'Delete',
   'button.batchDelete': 'Batch Delete',
@@ -31,6 +32,8 @@ export default {
   'button.more': 'More',
   'button.config': 'Config',
   'button.edit': 'Edit',
+  'button.start': 'Start',
+  'button.stop': 'Stop',
   'button.assignUser': 'Assign Users',
   'button.assignRole': 'Assign Role',
   'button.changePassword': 'Change Password',
@@ -46,9 +49,13 @@ export default {
   'button.heartbeat': 'Heartbeat',
   'button.recycle': 'Recycle',
   'button.refresh': 'Refresh',
+  'button.test': 'Test',
   'button.refreshData': 'Refresh Data',
   'button.collapseDir': 'Collapse Directory',
-
+  'button.asc': 'ASC',
+  'button.desc': 'DESC',
+  'button.query': 'Query',
+  'button.exit': 'Exit',
 
   'right.menu.open': 'Open',
   'right.menu.submit': 'Sync Submit',
@@ -68,6 +75,7 @@ export default {
 
   'tips.selected': 'Selected {total} Item',
   'tips.notSelected': 'Not Select',
+  'tips.enter': 'Please Enter',
   'tips.confirm.logout.session': 'Confirm logout session [{sessionName}] ?',
   'tips.confirm.delete.table': ' Are you sure you want to delete table [{tableName}]?',
   'tips.create.session.success': 'Create Session [{session}] success!',
@@ -75,11 +83,13 @@ export default {
   'status.enabled': 'Enabled',
   'status.disabled': 'Disabled',
 
-  'global.time.second': 'Second',
-  'global.time.minute': 'Minute',
-  'global.time.hour': 'Hour',
-  'global.time.day': 'Day',
-  'global.time.millisecond': 'millisecond',
+  'global.time.second': 'S ',
+  'global.time.minute': 'M ',
+  'global.time.hour': 'H ',
+  'global.time.day': 'D ',
+  'global.time.millisecond': 'ms ',
+
+  'global.stay.tuned': 'Stay tuned',
 
   'global.table.operate': 'Operation',
   'global.table.config': 'Config',
@@ -90,7 +100,9 @@ export default {
   'global.table.lastUpdateTime': 'Last Update Time',
   'global.table.createTime': 'Create Time',
   'global.table.startTime': 'Start Time',
+  'global.table.startUpTime': 'StartUp Time',
   'global.table.endTime': 'End Time',
+  'global.table.finishTime': 'Finished Time',
   'global.table.useTime': 'Duration',
 
   'global.table.registType': 'Regist Type',
@@ -99,36 +111,11 @@ export default {
 
   'global.table.isEnable': 'Is Enable',
   'global.table.note': 'Note',
-
   'global.table.status': 'Status',
+
+  'global.table.notePlaceholder': 'please input Note',
   'global.table.status.normal': 'Normal',
   'global.table.status.abnormal': 'Abnormal',
-
-  'global.table.version': 'Version',
-  'global.table.jobManagerAddress': 'JobManger Address',
-  'global.table.jobManagerHaAddress': 'JobManger HA Address',
-  'global.table.type': 'Type',
-  'global.table.nickName': 'Nick Name',
-  'global.table.instanceName': 'Instance Name',
-  'global.table.instanceId': 'Instance Id',
-  'global.table.clusterManagement': 'Cluster Management',
-  'global.table.create': 'Create',
-  'global.table.heartbeat': 'Heartbeat',
-  'global.table.recycle': 'Recycle',
-  'global.table.refresh': 'Refresh',
-
-  'global.table.no': 'No',
-  'global.table.columnName': 'Column Name',
-  'global.table.annotation': 'Annotation',
-  'global.table.primarykey': 'Primary key',
-  'global.table.automationAdd': 'Automation Add',
-  'global.table.isNull': 'Is Null',
-  'global.table.default': 'Default',
-  'global.table.precision': 'Precision',
-  'global.table.decimalDigits': 'Decimal Digits',
-  'global.table.character': 'Character',
-  'global.table.collationRule': 'Collation Rule',
-  'global.table.javaType': 'java Type',
 
   'global.table.jobname': 'Job Name',
   'global.table.jobid': 'Job Id',
@@ -138,7 +125,15 @@ export default {
   'global.table.lifecycle.publish': 'Publish',
   'global.table.lifecycle.online': 'Online',
   'global.table.lifecycle.unknown': 'Unknown',
+  'global.table.execmode': 'Execution mode',
   'global.table.runmode': 'Run Mode',
+  'global.table.runmode.local': 'Local',
+  'global.table.runmode.remote': 'Remote',
+
+  'global.savepoint.strategy.disabled':'Disabled',
+  'global.savepoint.strategy.latest':'Latest',
+  'global.savepoint.strategy.earliest':'Earliest',
+  'global.savepoint.strategy.custom':'Custom',
 
 
 };

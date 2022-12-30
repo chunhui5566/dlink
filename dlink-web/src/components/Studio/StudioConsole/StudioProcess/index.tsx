@@ -17,23 +17,20 @@
  *
  */
 
-
 import {Button, Divider, Dropdown, Empty, Menu, message, Modal, Select, Space, Tag, Tooltip} from "antd";
 import {StateType} from "@/pages/DataStudio/model";
-import {connect, useIntl} from "umi";
+import {connect} from "umi";
 import React, {useState} from "react";
 import {DownOutlined, SearchOutlined} from '@ant-design/icons';
 import ProTable from '@ant-design/pro-table';
 import {cancelJob, savepointJob, showFlinkJobs} from "../../StudioEvent/DDL";
 import JobStatus from "@/components/Common/JobStatus";
 import {parseSecondStr} from "@/components/Common/function";
+import {l} from "@/utils/intl";
 
 const {Option} = Select;
 
 const StudioProcess = (props: any) => {
-
-  const intl = useIntl();
-  const l = (id: string, defaultMessage?: string, value?: {}) => intl.formatMessage({id, defaultMessage}, value);
 
   const {cluster} = props;
   const [jobsData, setJobsData] = useState<any>({});
@@ -41,8 +38,8 @@ const StudioProcess = (props: any) => {
 
   const savepoint = (key: string | number, currentItem: {}) => {
     Modal.confirm({
-      title: key + '任务',
-      content: `确定${key}该作业吗？`,
+      title: l('pages.devops.jobinfo.job.key','',{key: key}),
+      content: l('pages.devops.jobinfo.job.keyConfirm','',{key: key}),
       okText: l('button.confirm'),
       cancelText: l('button.cancel'),
       onOk: async () => {
@@ -50,10 +47,10 @@ const StudioProcess = (props: any) => {
         let res = savepointJob(clusterId, currentItem.jid, key, key, 0);
         res.then((result) => {
           if (result.datas == true) {
-            message.success(key + "成功");
+            message.success(l('pages.devops.jobinfo.job.key.success','',{key:key}));
             onRefreshJobs();
           } else {
-            message.error(key + "失败");
+            message.error(l('pages.devops.jobinfo.job.key.failed','',{key:key}));
           }
         });
       }
@@ -66,52 +63,52 @@ const StudioProcess = (props: any) => {
     <Dropdown
       overlay={
         <Menu onClick={({key}) => savepoint(key, item)}>
-          <Menu.Item key="trigger">Trigger</Menu.Item>
-          <Menu.Item key="stop">Stop</Menu.Item>
-          <Menu.Item key="cancel">Cancel</Menu.Item>
+          <Menu.Item key="trigger">{l('pages.datastudio.label.process.trigger')}</Menu.Item>
+          <Menu.Item key="stop">{l('pages.datastudio.label.process.stop')}</Menu.Item>
+          <Menu.Item key="cancel">{l('pages.datastudio.label.process.cancel')}</Menu.Item>
         </Menu>
       }
     >
       <a>
-        SavePoint <DownOutlined/>
+        {l('pages.datastudio.label.process.savepoint')}  <DownOutlined/>
       </a>
     </Dropdown>
   );
 
   const getColumns = () => {
     let columns: any = [{
-      title: "作业ID",
+      title: l('pages.devops.baseinfo.taskid'),
       dataIndex: "jid",
       key: "jid",
       sorter: true,
     }, {
-      title: "作业名",
+      title: l('pages.devops.baseinfo.name'),
       dataIndex: "name",
       sorter: true,
     }, {
-      title: "状态",
+      title: l('pages.devops.baseinfo.status'),
       dataIndex: "state",
       sorter: true,
       render: (_, row) => {
         return (<JobStatus status={row.state}/>);
       }
     }, {
-      title: "开始时间",
+      title: l('global.table.startTime'),
       dataIndex: "start-time",
       sorter: true,
       valueType: 'dateTime',
     }, {
-      title: "最近修改时间",
+      title: l('global.table.lastUpdateTime'),
       dataIndex: "last-modification",
       sorter: true,
       valueType: 'dateTime',
     }, {
-      title: "结束时间",
+      title: l('global.table.endTime'),
       dataIndex: "end-time",
       sorter: true,
       valueType: 'dateTime',
     }, {
-      title: "耗时",
+      title: l('global.table.useTime'),
       sorter: true,
       render: (_, row) => {
         return (parseSecondStr(row.duration))
@@ -151,10 +148,10 @@ const StudioProcess = (props: any) => {
       render: (_, record) => {
         let option = [<a
           onClick={() => {
-            message.success('敬请期待');
+            message.success(l('global.stay.tuned'));
           }}
         >
-          详情
+          {l('pages.datastudio.label.process.detail')}
         </a>];
         if (record.state == 'RUNNING' || record.state == 'RECONCILING' || record.state == 'SCHEDULED') {
           option.push(<Divider type="vertical"/>);
@@ -163,7 +160,7 @@ const StudioProcess = (props: any) => {
               onCancel(record.jid);
             }}
           >
-            停止
+            {l('pages.datastudio.label.process.stop')}
           </a>);
         }
         option.push(<SavePointBtn key="savepoint" item={record}/>,)
@@ -175,18 +172,18 @@ const StudioProcess = (props: any) => {
 
   const onCancel = (jobId: string) => {
     Modal.confirm({
-      title: `确认停止作业【${jobId}】？`,
-      okText: '停止',
-      cancelText: '取消',
+      title: l('pages.datastudio.label.process.stopconfirm','',{jobid:jobId}),
+      okText: l('pages.datastudio.label.process.stop'),
+      cancelText: l('button.cancel'),
       onOk: async () => {
         if (!clusterId) return;
         let res = cancelJob(clusterId, jobId);
         res.then((result) => {
           if (result.datas == true) {
-            message.success("停止成功");
+            message.success(l('pages.datastudio.label.process.stopsuccess'));
             onRefreshJobs();
           } else {
-            message.error("停止失败");
+            message.error(l('pages.datastudio.label.process.stopfailed'));
           }
         });
       }
@@ -229,7 +226,7 @@ const StudioProcess = (props: any) => {
       <Space>
         <Select
           // style={{width: '100%'}}
-          placeholder="选择Flink集群"
+          placeholder={l('pages.datastudio.label.process.switchcluster')}
           optionLabelProp="label"
           onChange={onChangeCluster}
         >

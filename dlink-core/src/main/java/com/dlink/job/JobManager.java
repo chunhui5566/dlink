@@ -19,13 +19,24 @@
 
 package com.dlink.job;
 
+import static com.dlink.function.util.UDFUtil.GATEWAY_TYPE_MAP;
+import static com.dlink.function.util.UDFUtil.SESSION;
+import static com.dlink.function.util.UDFUtil.YARN;
+
 import com.dlink.api.FlinkAPI;
 import com.dlink.assertion.Asserts;
+import com.dlink.classloader.DinkyClassLoader;
 import com.dlink.constant.FlinkSQLConstant;
+import com.dlink.context.DinkyClassLoaderContextHolder;
+import com.dlink.context.JarPathContextHolder;
 import com.dlink.executor.EnvironmentSetting;
 import com.dlink.executor.Executor;
 import com.dlink.executor.ExecutorSetting;
 import com.dlink.explainer.Explainer;
+import com.dlink.function.constant.PathConstant;
+import com.dlink.function.data.model.Env;
+import com.dlink.function.data.model.UDF;
+import com.dlink.function.util.UDFUtil;
 import com.dlink.gateway.Gateway;
 import com.dlink.gateway.GatewayType;
 import com.dlink.gateway.config.ActionType;
@@ -38,9 +49,9 @@ import com.dlink.interceptor.FlinkInterceptor;
 import com.dlink.interceptor.FlinkInterceptorResult;
 import com.dlink.model.SystemConfiguration;
 import com.dlink.parser.SqlType;
-import com.dlink.pool.ClassEntity;
-import com.dlink.pool.ClassPool;
 import com.dlink.process.context.ProcessContextHolder;
+import com.dlink.process.exception.DinkyException;
+import com.dlink.process.model.ProcessEntity;
 import com.dlink.result.ErrorResult;
 import com.dlink.result.ExplainResult;
 import com.dlink.result.IResult;
@@ -55,33 +66,46 @@ import com.dlink.session.SessionPool;
 import com.dlink.trans.Operations;
 import com.dlink.utils.LogUtil;
 import com.dlink.utils.SqlUtil;
-import com.dlink.utils.UDFUtil;
+import com.dlink.utils.URLUtils;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import java.io.File;
+import java.lang.reflect.Field;
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ArrayUtil;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
 
 /**
  * JobManager
@@ -98,6 +122,7 @@ public class JobManager {
     private ExecutorSetting executorSetting;
     private JobConfig config;
     private Executor executor;
+    private Configuration configuration;
     private boolean useGateway = false;
     private boolean isPlanMode = false;
     private boolean useStatementSet = false;
@@ -162,12 +187,6 @@ public class JobManager {
         initGatewayConfig(config);
         JobManager manager = new JobManager(config);
         manager.init();
-        manager.executor.initUDF(config.getJarFiles());
-        manager.executor.initPyUDF(config.getPyFiles());
-
-        if (config.getGatewayConfig() != null) {
-            config.getGatewayConfig().setJarPaths(ArrayUtil.append(config.getJarFiles(),config.getPyFiles()));
-        }
         return manager;
     }
 
@@ -175,7 +194,6 @@ public class JobManager {
         JobManager manager = new JobManager(config);
         manager.setPlanMode(true);
         manager.init();
-        manager.executor.initUDF(config.getJarFiles());
         ProcessContextHolder.getProcess().info("Build Flink plan mode success.");
         return manager;
     }
@@ -193,7 +211,7 @@ public class JobManager {
 
     public static boolean useGateway(String type) {
         return (GatewayType.YARN_PER_JOB.equalsValue(type) || GatewayType.YARN_APPLICATION.equalsValue(type)
-            || GatewayType.KUBERNETES_APPLICATION.equalsValue(type));
+                || GatewayType.KUBERNETES_APPLICATION.equalsValue(type));
     }
 
     private Executor createExecutor() {
@@ -202,6 +220,12 @@ public class JobManager {
             executor = Executor.buildRemoteExecutor(environmentSetting, config.getExecutorSetting());
             return executor;
         } else {
+            if (ArrayUtil.isNotEmpty(config.getJarFiles())) {
+                config.getExecutorSetting().getConfig().put(PipelineOptions.JARS.key(),
+                        Stream.of(config.getJarFiles()).map(FileUtil::getAbsolutePath)
+                                .collect(Collectors.joining(",")));
+            }
+
             executor = Executor.buildLocalExecutor(config.getExecutorSetting());
             return executor;
         }
@@ -228,7 +252,7 @@ public class JobManager {
 
     private void initEnvironmentSetting() {
         if (Asserts.isNotNullString(config.getAddress())) {
-            environmentSetting = EnvironmentSetting.build(config.getAddress());
+            environmentSetting = EnvironmentSetting.build(config.getAddress(), config.getJarFiles());
         }
     }
 
@@ -245,9 +269,74 @@ public class JobManager {
         useStatementSet = config.isUseStatementSet();
         useRestAPI = SystemConfiguration.getInstances().isUseRestAPI();
         sqlSeparator = SystemConfiguration.getInstances().getSqlSeparator();
+
         initExecutorSetting();
         createExecutorWithSession();
+
         return false;
+    }
+
+    private void addConfigurationClsAndJars(List<URL> jarList, List<URL> classpaths) throws Exception {
+        Field configuration = StreamExecutionEnvironment.class.getDeclaredField("configuration");
+        configuration.setAccessible(true);
+        Configuration o = (Configuration) configuration.get(executor.getStreamExecutionEnvironment());
+
+        Field confData = Configuration.class.getDeclaredField("confData");
+        confData.setAccessible(true);
+        Map<String, Object> temp = (Map<String, Object>) confData.get(o);
+        temp.put(PipelineOptions.CLASSPATHS.key(), classpaths.stream().map(URL::toString).collect(Collectors.toList()));
+        temp.put(PipelineOptions.JARS.key(), jarList.stream().map(URL::toString).collect(Collectors.toList()));
+    }
+
+    private void initUDF(List<UDF> udfList) {
+        ProcessEntity process = ProcessContextHolder.getProcess();
+
+        // 这里要分开
+        // 1. 得到jar包路径，注入remote环境
+        Set<File> jarFiles = JarPathContextHolder.getUdfFile();
+
+        Set<File> otherPluginsFiles = JarPathContextHolder.getOtherPluginsFiles();
+        jarFiles.addAll(otherPluginsFiles);
+
+        List<File> udfJars = Arrays.stream(UDFUtil.initJavaUDF(udfList, runMode, config.getTaskId())).map(File::new)
+                .collect(Collectors.toList());
+        jarFiles.addAll(udfJars);
+
+        String[] jarPaths = CollUtil.removeNull(jarFiles).stream().map(File::getAbsolutePath).toArray(String[]::new);
+
+        if (GATEWAY_TYPE_MAP.get(SESSION).contains(runMode)) {
+            config.setJarFiles(jarPaths);
+        }
+        try {
+            List<URL> jarList = CollUtil.newArrayList(URLUtils.getURLs(jarFiles));
+            writeManifest(config.getTaskId(), jarList);
+
+            addConfigurationClsAndJars(jarList,
+                    CollUtil.newArrayList(URLUtils.getURLs(otherPluginsFiles)));
+        } catch (Exception e) {
+            logger.error("add configuration failed;reason:{}", LogUtil.getError(e));
+            throw new RuntimeException(e);
+        }
+
+        // 2.编译python
+        String[] pyPaths = UDFUtil.initPythonUDF(udfList, runMode, config.getTaskId(),
+                executor.getTableConfig().getConfiguration());
+
+        executor.initUDF(jarPaths);
+
+        executor.initPyUDF(Env.getPath(), pyPaths);
+        if (GATEWAY_TYPE_MAP.get(YARN).contains(runMode)) {
+            config.getGatewayConfig().setJarPaths(ArrayUtil.append(jarPaths, pyPaths));
+        }
+        process.info("Initializing Flink UDF...Finish");
+    }
+
+    private void writeManifest(Integer taskId, List<URL> jarPaths) {
+        JSONArray array = new JSONArray(jarPaths.stream().map(URL::getFile).collect(Collectors.toList()));
+        JSONObject object = new JSONObject();
+        object.set("jars", array);
+        FileUtil.writeUtf8String(object.toStringPretty(),
+                PathConstant.getUdfPackagePath(taskId) + PathConstant.DEP_MANIFEST);
     }
 
     private boolean ready() {
@@ -267,7 +356,43 @@ public class JobManager {
         return false;
     }
 
+    private void initClassLoader(JobConfig config) {
+        if (CollUtil.isNotEmpty(config.getConfig())) {
+            String pipelineJars = config.getConfig().get(PipelineOptions.JARS.key());
+            String classpaths = config.getConfig().get(PipelineOptions.CLASSPATHS.key());
+            // add custom jar path
+            if (StrUtil.isNotBlank(pipelineJars)) {
+                String[] paths = pipelineJars.split(",");
+                for (String path : paths) {
+                    File file = FileUtil.file(path);
+                    if (!file.exists()) {
+                        throw new DinkyException("file: " + path + " .not exists! ");
+                    }
+                    JarPathContextHolder.addUdfPath(file);
+                }
+            }
+            // add custom classpath
+            if (StrUtil.isNotBlank(classpaths)) {
+                String[] paths = pipelineJars.split(",");
+                for (String path : paths) {
+                    File file = FileUtil.file(path);
+                    if (!file.exists()) {
+                        throw new DinkyException("file: " + path + " .not exists! ");
+                    }
+                    JarPathContextHolder.addOtherPlugins(file);
+                }
+            }
+        }
+
+        DinkyClassLoader classLoader = new DinkyClassLoader(
+                CollUtil.addAll(JarPathContextHolder.getUdfFile(), JarPathContextHolder.getOtherPluginsFiles()),
+                Thread.currentThread().getContextClassLoader());
+        DinkyClassLoaderContextHolder.set(classLoader);
+    }
+
     public JobResult executeSql(String statement) {
+        initClassLoader(config);
+        ProcessEntity process = ProcessContextHolder.getProcess();
         Job job = Job.init(runMode, config, executorSetting, executor, statement, useGateway);
         if (!useGateway) {
             job.setJobManagerAddress(environmentSetting.getAddress());
@@ -276,8 +401,10 @@ public class JobManager {
         ready();
         String currentSql = "";
         JobParam jobParam = Explainer.build(executor, useStatementSet, sqlSeparator)
-            .pretreatStatements(SqlUtil.getStatements(statement, sqlSeparator));
+                .pretreatStatements(SqlUtil.getStatements(statement, sqlSeparator));
         try {
+            initUDF(jobParam.getUdfList());
+
             for (StatementParam item : jobParam.getDdl()) {
                 currentSql = item.getValue();
                 executor.executeSql(item.getValue());
@@ -320,10 +447,9 @@ public class JobManager {
                         }
                         if (config.isUseResult()) {
                             // Build insert result.
-                            IResult result =
-                                ResultBuilder
+                            IResult result = ResultBuilder
                                     .build(SqlType.INSERT, config.getMaxRowNum(), config.isUseChangeLog(),
-                                        config.isUseAutoCancel(), executor.getTimeZone())
+                                            config.isUseAutoCancel(), executor.getTimeZone())
                                     .getResult(tableResult);
                             job.setResult(result);
                         }
@@ -344,14 +470,14 @@ public class JobManager {
                 } else {
                     for (StatementParam item : jobParam.getTrans()) {
                         currentSql = item.getValue();
-                        FlinkInterceptorResult flinkInterceptorResult =
-                            FlinkInterceptor.build(executor, item.getValue());
+                        FlinkInterceptorResult flinkInterceptorResult = FlinkInterceptor.build(executor,
+                                item.getValue());
                         if (Asserts.isNotNull(flinkInterceptorResult.getTableResult())) {
                             if (config.isUseResult()) {
                                 IResult result = ResultBuilder
-                                    .build(item.getType(), config.getMaxRowNum(), config.isUseChangeLog(),
-                                        config.isUseAutoCancel(), executor.getTimeZone())
-                                    .getResult(flinkInterceptorResult.getTableResult());
+                                        .build(item.getType(), config.getMaxRowNum(), config.isUseChangeLog(),
+                                                config.isUseAutoCancel(), executor.getTimeZone())
+                                        .getResult(flinkInterceptorResult.getTableResult());
                                 job.setResult(result);
                             }
                         } else {
@@ -367,8 +493,7 @@ public class JobManager {
                                     });
                                 }
                                 if (config.isUseResult()) {
-                                    IResult result =
-                                        ResultBuilder.build(item.getType(), config.getMaxRowNum(),
+                                    IResult result = ResultBuilder.build(item.getType(), config.getMaxRowNum(),
                                             config.isUseChangeLog(), config.isUseAutoCancel(),
                                             executor.getTimeZone()).getResult(tableResult);
                                     job.setResult(result);
@@ -398,7 +523,7 @@ public class JobManager {
                         JobGraph jobGraph = streamGraph.getJobGraph();
                         if (Asserts.isNotNullString(config.getSavePointPath())) {
                             jobGraph.setSavepointRestoreSettings(
-                                SavepointRestoreSettings.forPath(config.getSavePointPath(), true));
+                                    SavepointRestoreSettings.forPath(config.getSavePointPath(), true));
                         }
                         gatewayResult = Gateway.build(config.getGatewayConfig()).submitJobGraph(jobGraph);
                     }
@@ -424,9 +549,10 @@ public class JobManager {
                         });
                     }
                     if (config.isUseResult()) {
-                        IResult result =
-                            ResultBuilder.build(SqlType.EXECUTE, config.getMaxRowNum(), config.isUseChangeLog(),
-                                config.isUseAutoCancel(), executor.getTimeZone()).getResult(null);
+                        IResult result = ResultBuilder
+                                .build(SqlType.EXECUTE, config.getMaxRowNum(), config.isUseChangeLog(),
+                                        config.isUseAutoCancel(), executor.getTimeZone())
+                                .getResult(null);
                         job.setResult(result);
                     }
                 }
@@ -439,10 +565,11 @@ public class JobManager {
             job.setEndTime(LocalDateTime.now());
             job.setStatus(Job.JobStatus.FAILED);
             job.setError(error);
+            process.error(error);
             failed();
+        } finally {
             close();
         }
-        close();
         return job.getJobResult();
     }
 
@@ -491,7 +618,7 @@ public class JobManager {
                 LocalDateTime startTime = LocalDateTime.now();
                 TableResult tableResult = executor.executeSql(newStatement);
                 result = ResultBuilder.build(operationType, config.getMaxRowNum(), false, false, executor.getTimeZone())
-                    .getResult(tableResult);
+                        .getResult(tableResult);
                 result.setStartTime(startTime);
             }
             return result;
@@ -512,12 +639,12 @@ public class JobManager {
         Executor sessionExecutor = null;
         if (sessionConfig.isUseRemote()) {
             sessionExecutor = Executor.buildRemoteExecutor(EnvironmentSetting.build(sessionConfig.getAddress()),
-                ExecutorSetting.DEFAULT);
+                    ExecutorSetting.DEFAULT);
         } else {
             sessionExecutor = Executor.buildLocalExecutor(sessionConfig.getExecutorSetting());
         }
-        ExecutorEntity executorEntity =
-            new ExecutorEntity(session, sessionConfig, createUser, LocalDateTime.now(), sessionExecutor);
+        ExecutorEntity executorEntity = new ExecutorEntity(session, sessionConfig, createUser, LocalDateTime.now(),
+                sessionExecutor);
         SessionPool.push(executorEntity);
         return SessionInfo.build(executorEntity);
     }
@@ -541,7 +668,7 @@ public class JobManager {
     public boolean cancel(String jobId) {
         if (useGateway && !useRestAPI) {
             config.getGatewayConfig().setFlinkConfig(FlinkConfig.build(jobId, ActionType.CANCEL.getValue(),
-                null, null));
+                    null, null));
             Gateway.build(config.getGatewayConfig()).savepointJob();
             return true;
         } else {
@@ -557,14 +684,24 @@ public class JobManager {
     public SavePointResult savepoint(String jobId, String savePointType, String savePoint) {
         if (useGateway && !useRestAPI) {
             config.getGatewayConfig().setFlinkConfig(FlinkConfig.build(jobId, ActionType.SAVEPOINT.getValue(),
-                savePointType, null));
+                    savePointType, null));
             return Gateway.build(config.getGatewayConfig()).savepointJob(savePoint);
         } else {
-            return FlinkAPI.build(config.getAddress()).savepoints(jobId, savePointType);
+            return FlinkAPI.build(config.getAddress()).savepoints(jobId, savePointType, config.getConfig());
         }
     }
 
+    public static void killCluster(GatewayConfig gatewayConfig, String appId) {
+        gatewayConfig.getClusterConfig().setAppId(appId);
+        Gateway.build(gatewayConfig).killCluster();
+    }
+
+    public static GatewayResult deploySessionCluster(GatewayConfig gatewayConfig) {
+        return Gateway.build(gatewayConfig).deployCluster();
+    }
+
     public JobResult executeJar() {
+        ProcessEntity process = ProcessContextHolder.getProcess();
         Job job = Job.init(runMode, config, executorSetting, executor, null, useGateway);
         JobContextHolder.setJob(job);
         ready();
@@ -579,14 +716,15 @@ public class JobManager {
             success();
         } catch (Exception e) {
             String error = LogUtil.getError(
-                "Exception in executing Jar：\n" + config.getGatewayConfig().getAppConfig().getUserJarPath(), e);
+                    "Exception in executing Jar：\n" + config.getGatewayConfig().getAppConfig().getUserJarPath(), e);
             job.setEndTime(LocalDateTime.now());
             job.setStatus(Job.JobStatus.FAILED);
             job.setError(error);
             failed();
+            process.error(error);
+        } finally {
             close();
         }
-        close();
         return job.getJobResult();
     }
 
@@ -605,15 +743,15 @@ public class JobManager {
         }
         if (Asserts.isNotNull(config.getCheckpoint())) {
             sb.append("set " + ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL.key() + " = "
-                + config.getCheckpoint() + ";\r\n");
+                    + config.getCheckpoint() + ";\r\n");
         }
         if (Asserts.isNotNullString(config.getSavePointPath())) {
             sb.append("set " + SavepointConfigOptions.SAVEPOINT_PATH + " = " + config.getSavePointPath() + ";\r\n");
         }
         if (Asserts.isNotNull(config.getGatewayConfig())
-            && Asserts.isNotNull(config.getGatewayConfig().getFlinkConfig().getConfiguration())) {
+                && Asserts.isNotNull(config.getGatewayConfig().getFlinkConfig().getConfiguration())) {
             for (Map.Entry<String, String> entry : config.getGatewayConfig().getFlinkConfig().getConfiguration()
-                .entrySet()) {
+                    .entrySet()) {
                 sb.append("set " + entry.getKey() + " = " + entry.getValue() + ";\r\n");
             }
         }
@@ -622,16 +760,16 @@ public class JobManager {
             case YARN_PER_JOB:
             case YARN_APPLICATION:
                 sb.append("set " + DeploymentOptions.TARGET.key() + " = "
-                    + GatewayType.get(config.getType()).getLongValue() + ";\r\n");
+                        + GatewayType.get(config.getType()).getLongValue() + ";\r\n");
                 if (Asserts.isNotNull(config.getGatewayConfig())) {
                     sb.append("set " + YarnConfigOptions.PROVIDED_LIB_DIRS.key() + " = "
-                        + Collections.singletonList(config.getGatewayConfig().getClusterConfig().getFlinkLibPath())
-                        + ";\r\n");
+                            + Collections.singletonList(config.getGatewayConfig().getClusterConfig().getFlinkLibPath())
+                            + ";\r\n");
                 }
                 if (Asserts.isNotNull(config.getGatewayConfig())
-                    && Asserts.isNotNullString(config.getGatewayConfig().getFlinkConfig().getJobName())) {
+                        && Asserts.isNotNullString(config.getGatewayConfig().getFlinkConfig().getJobName())) {
                     sb.append("set " + YarnConfigOptions.APPLICATION_NAME.key() + " = "
-                        + config.getGatewayConfig().getFlinkConfig().getJobName() + ";\r\n");
+                            + config.getGatewayConfig().getFlinkConfig().getJobName() + ";\r\n");
                 }
                 break;
             default:
@@ -640,22 +778,7 @@ public class JobManager {
         return sb.toString();
     }
 
-    public static void initUDF(String className, String code) {
-        if (ClassPool.exist(ClassEntity.build(className, code))) {
-            UDFUtil.initClassLoader(className);
-        } else {
-            UDFUtil.buildClass(code);
-        }
-    }
-
-    public static void initMustSuccessUDF(String className, String code) {
-        if (ClassPool.exist(ClassEntity.build(className, code))) {
-            UDFUtil.initClassLoader(className);
-        } else {
-            // 如果编译失败，返回异常。因为必须用到的函数，也必须编译成功
-            if (!UDFUtil.buildClass(code)) {
-                throw new CompilerException(String.format("class:%s 编译异常,请检查代码", className));
-            }
-        }
+    public Executor getExecutor() {
+        return executor;
     }
 }
