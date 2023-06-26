@@ -22,6 +22,7 @@ import {Button, Divider, Form, Input, message, Modal, Select, Space, Switch, Upl
 import {MinusCircleOutlined, PlusOutlined, UploadOutlined} from '@ant-design/icons';
 import {getConfig, getConfigFormValues} from "@/pages/RegistrationCenter/ClusterManage/ClusterConfiguration/function";
 import {
+  Config,
   DOCKER_CONFIG_LIST,
   FLINK_CONFIG_LIST,
   HADOOP_CONFIG_LIST,
@@ -52,7 +53,6 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
   const [formVals, setFormVals] = useState<Partial<ClusterConfigurationTableListItem>>({
     id: props.values.id,
     name: props.values.name,
-    alias: props.values.alias,
     type: props.values.type ? props.values.type : "Yarn",
     configJson: props.values.configJson,
     note: props.values.note,
@@ -102,15 +102,16 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
 
   const submitForm = async () => {
     const fieldsValue = await form.validateFields();
+
     const formValues = {
       id: formVals.id,
       name: fieldsValue.name,
-      alias: fieldsValue.alias,
       type: fieldsValue.type,
       note: fieldsValue.note,
       enabled: fieldsValue.enabled,
       configJson: JSON.stringify(getConfig(fieldsValue)),
     };
+
     setFormVals(formValues);
     handleSubmit(formValues);
   };
@@ -202,6 +203,27 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
           )}
         </Form.List>
       </Form.Item>
+    )
+  }
+
+  const renderFlinkKubernetesOperatorPage = (formValsPara: Partial<ClusterConfigurationTableListItem>) => {
+    return (
+      <>
+        <Divider>{l('pages.rc.clusterConfig.k8sConfig')}</Divider>
+        <Form.Item
+          name="flinkVersion"
+          label={l('pages.rc.clusterConfig.kubernets.version')}
+        >
+          <Select>
+            <Option value="v1_13">v1_13 ({l('pages.rc.clusterConfig.kubernets.unsupportBatch')})</Option>
+            <Option value="v1_14">v1_14 ({l('pages.rc.clusterConfig.kubernets.unsupportBatch')})</Option>
+            <Option value="v1_15">v1_15</Option>
+            <Option value="v1_16">v1_16</Option>
+          </Select>
+        </Form.Item>
+        {buildConfig(KUBERNETES_CONFIG_LIST, formValsPara)}
+
+      </>
     )
   }
 
@@ -303,13 +325,15 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
           <Select defaultValue="Yarn" value="Yarn">
             <Option value="Yarn">Flink On Yarn</Option>
             <Option value="Kubernetes">Flink Kubernetes Native</Option>
-            {/*<Option value="FlinkKubernetesOperator">Flink Kubernetes Operator</Option>*/}
+            <Option value="KubernetesOperator">Flink Kubernetes Operator</Option>
           </Select>
         </Form.Item>
 
         {formValsPara.type == 'Yarn' ? renderYarnPage(formValsPara) : undefined}
 
         {formValsPara.type == 'Kubernetes' ? renderFlinkKubernetesNativePage(formValsPara) : undefined}
+
+        {formValsPara.type == 'KubernetesOperator' ? renderFlinkKubernetesOperatorPage(formValsPara) : undefined}
 
 
         <Divider orientation="left" plain>{l('pages.rc.clusterConfig.defineConfig.highPriority')}</Divider>
@@ -319,18 +343,21 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
           "flinkConfigList",
           l('pages.rc.clusterConfig.addDefineConfig'))}
 
+        <Divider>{l('pages.rc.clusterConfig.submitSqlConfig')}</Divider>
+        <Form.Item
+          name="userJarPath"
+          label={l('pages.rc.clusterConfig.sqlSubmitJarPath')}
+          help={l('pages.rc.clusterConfig.sqlSubmitJarPath')+' eg: hdfs:///dlink/jar/dlink-app.jar'}
+        >
+          <Input placeholder={l('pages.rc.clusterConfig.sqlSubmitJarPath')} />
+        </Form.Item>
+
         <Divider>{l('pages.rc.clusterConfig.baseConfig')}</Divider>
         <Form.Item
           name="name"
           label={l('pages.rc.clusterConfig.name')}
           rules={[{required: true, message: l('pages.rc.clusterConfig.namePlaceholder')}]}>
           <Input placeholder={l('pages.rc.clusterConfig.namePlaceholder')}/>
-        </Form.Item>
-        <Form.Item
-          name="alias"
-          label={l('pages.rc.clusterConfig.alias')}
-        >
-          <Input placeholder={l('pages.rc.clusterConfig.aliasPlaceholder')}/>
         </Form.Item>
         <Form.Item
           name="note"
@@ -354,7 +381,6 @@ const ClusterConfigurationForm: React.FC<ClusterConfigurationFormProps> = (props
     const formValues = {
       id: formVals.id,
       name: fieldsValue.name,
-      alias: fieldsValue.alias,
       type: fieldsValue.type,
       note: fieldsValue.note,
       enabled: fieldsValue.enabled,

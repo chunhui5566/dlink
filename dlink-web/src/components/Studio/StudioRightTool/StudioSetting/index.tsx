@@ -60,7 +60,7 @@ const StudioSetting = (props: any) => {
     const itemList = [];
     for (const item of sessionCluster) {
       const tag = (<><Tag
-        color={item.enabled ? "processing" : "error"}>{item.type}</Tag>{item.alias === "" ? item.name : item.alias}</>);
+        color={item.enabled ? "processing" : "error"}>{item.type}</Tag>{item.name}</>);
       itemList.push(<Option key={item.id} value={item.id} label={tag}>
         {tag}
       </Option>)
@@ -72,7 +72,7 @@ const StudioSetting = (props: any) => {
     const itemList = [];
     for (const item of clusterConfiguration) {
       const tag = (<><Tag
-        color={item.enabled ? "processing" : "error"}>{item.type}</Tag>{item.alias === "" ? item.name : item.alias}</>);
+        color={item.enabled ? "processing" : "error"}>{item.type}</Tag>{item.name}</>);
       itemList.push(<Option key={item.id} value={item.id} label={tag}>
         {tag}
       </Option>)
@@ -86,7 +86,7 @@ const StudioSetting = (props: any) => {
     </Option>];
     for (const item of env) {
       const tag = (<>{item.enabled ? <Badge status="success"/> : <Badge status="error"/>}
-        {item.fragment ? <PaperClipOutlined/> : undefined}{item.alias}</>);
+        {item.fragment ? <PaperClipOutlined/> : undefined}{item.name}</>);
       itemList.push(<Option key={item.id} value={item.id} label={tag}>
         {tag}
       </Option>)
@@ -163,6 +163,7 @@ const StudioSetting = (props: any) => {
               <Option value={RUN_MODE.YARN_APPLICATION}>Yarn Application</Option>
               <Option value={RUN_MODE.KUBERNETES_SESSION}>Kubernetes Session</Option>
               <Option value={RUN_MODE.KUBERNETES_APPLICATION}>Kubernetes Application</Option>
+              <Option value={RUN_MODE.KUBERNETES_APPLICATION_OPERATOR}>Kubernetes Operator Application</Option>
             </Select>
           </Form.Item>
           {(current.task.type === RUN_MODE.YARN_SESSION || current.task.type === RUN_MODE.KUBERNETES_SESSION || current.task.type === RUN_MODE.STANDALONE) ? (
@@ -192,7 +193,8 @@ const StudioSetting = (props: any) => {
                 </Form.Item>
               </Col>
             </Row>) : undefined}
-          {(current.task.type === RUN_MODE.YARN_PER_JOB || current.task.type === RUN_MODE.YARN_APPLICATION || current.task.type === RUN_MODE.KUBERNETES_APPLICATION) ? (
+          {(current.task.type === RUN_MODE.YARN_PER_JOB || current.task.type === RUN_MODE.YARN_APPLICATION
+          || current.task.type === RUN_MODE.KUBERNETES_APPLICATION|| current.task.type === RUN_MODE.KUBERNETES_APPLICATION_OPERATOR) ? (
             <Row>
               <Col span={24}>
                 <Form.Item label={l('pages.datastudio.label.jobConfig.clusterConfig')}

@@ -18,13 +18,14 @@
  */
 
 
-import {Empty, Tabs} from "antd";
+import {Button, Empty, Tabs} from "antd";
 import {
   ApartmentOutlined,
   BarChartOutlined,
   CalendarOutlined,
   CodeOutlined,
   DesktopOutlined,
+  PrinterOutlined,
   TableOutlined
 } from "@ant-design/icons";
 import {StateType} from "@/pages/DataStudio/model";
@@ -32,17 +33,18 @@ import {connect} from "umi";
 import StudioMsg from "./StudioMsg";
 import StudioTable from "./StudioTable";
 import StudioHistory from "./StudioHistory";
+import StudioData from "./StudioData"
 import StudioCA from "./StudioCA";
 import StudioProcess from "./StudioProcess";
 import {Scrollbars} from 'react-custom-scrollbars';
 import Chart from "@/components/Chart";
-import {useState} from "react";
+import React, {useState} from "react";
 import {l} from "@/utils/intl";
+
 
 const {TabPane} = Tabs;
 
 const StudioConsole = (props: any) => {
-
 
 
   const {height, current} = props;
@@ -54,15 +56,16 @@ const StudioConsole = (props: any) => {
   }
 
   return (
+
     <Tabs defaultActiveKey="StudioMsg" size="small" tabPosition="top" style={{
       border: "1px solid #f0f0f0", height: height, margin: "0 32px"
     }} onChange={onTabsChange}>
       <TabPane
         tab={
           <span>
-          <CodeOutlined/>
+            <CodeOutlined/>
             {l('pages.datastudio.label.info')}
-        </span>
+          </span>
         }
         key="StudioMsg"
       >
@@ -73,9 +76,9 @@ const StudioConsole = (props: any) => {
       <TabPane
         tab={
           <span>
-          <TableOutlined/>
+            <TableOutlined/>
             {l('pages.datastudio.label.result')}
-        </span>
+          </span>
         }
         key="StudioTable"
       >
@@ -86,9 +89,9 @@ const StudioConsole = (props: any) => {
       <TabPane
         tab={
           <span>
-          <BarChartOutlined/>
-          BI
-        </span>
+            <BarChartOutlined/>
+            BI
+          </span>
         }
         key="StudioChart"
       >
@@ -99,9 +102,9 @@ const StudioConsole = (props: any) => {
       <TabPane
         tab={
           <span>
-          <ApartmentOutlined/>
+            <ApartmentOutlined/>
             {l('pages.datastudio.label.lineage')}
-        </span>
+          </span>
         }
         key="StudioConsanguinity"
       >
@@ -112,9 +115,9 @@ const StudioConsole = (props: any) => {
       <TabPane
         tab={
           <span>
-          <DesktopOutlined/>
+            <DesktopOutlined/>
             {l('pages.datastudio.label.process')}
-        </span>
+          </span>
         }
         key="StudioProcess"
       >
@@ -125,9 +128,9 @@ const StudioConsole = (props: any) => {
       <TabPane
         tab={
           <span>
-          <CalendarOutlined/>
+            <CalendarOutlined/>
             {l('pages.datastudio.label.history')}
-        </span>
+          </span>
         }
         key="StudioHistory"
       >
@@ -135,19 +138,17 @@ const StudioConsole = (props: any) => {
           <StudioHistory/>
         </Scrollbars>
       </TabPane>
-      {/*<TabPane*/}
-      {/*  tab={*/}
-      {/*    <span>*/}
-      {/*    <FunctionOutlined/>*/}
-      {/*      {l('pages.datastudio.label.function')}*/}
-      {/*  </span>*/}
-      {/*  }*/}
-      {/*  key="StudioFX"*/}
-      {/*>*/}
-      {/*  <Scrollbars style={{height: consoleHeight}}>*/}
-      {/*    <StudioFX/>*/}
-      {/*  </Scrollbars>*/}
-      {/*</TabPane>*/}
+      <TabPane
+        tab={
+          <span>
+            <PrinterOutlined/>
+            {l('pages.datastudio.label.data')}
+          </span>
+        }
+        key="StudioData"
+      >
+        <StudioData height={consoleHeight} isActive={activeKey === "StudioData"}/>
+      </TabPane>
     </Tabs>
   );
 };

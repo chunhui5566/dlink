@@ -122,7 +122,8 @@ const JobInstanceTable = (props: any) => {
   }
 
   const getColumns = () => {
-    const columns: ProColumns<JobInstanceTableListItem>[] = [{
+    const columns: ProColumns<JobInstanceTableListItem>[] = [
+      {
       title: l('global.table.jobname'),
       dataIndex: "name",
       sorter: true,
@@ -191,7 +192,7 @@ const JobInstanceTable = (props: any) => {
       },
     }, {
       title: l('pages.rc.cluster.instanceName'),
-      dataIndex: "clusterAlias",
+      dataIndex: "clusterName",
       sorter: true,
     }, {
       title: l('global.table.jobid'),

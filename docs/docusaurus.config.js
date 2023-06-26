@@ -155,14 +155,14 @@ const config = {
                 items: [
                     {
                         to: '/',
-                        position: 'right',
+                        position: 'left',
                         label: '主页',
                         title: '主页',
                         activeBaseRegex: `^/$`,
                     },
                     {
                         type: 'docsVersionDropdown',
-                        position: 'right',
+                        position: 'left',
                         dropdownActiveClassDisabled: true,
                     },
                     {
@@ -212,9 +212,9 @@ const config = {
                     },
                     {
                         href: 'https://github.com/DataLinkDC/dlink',
-                        label: 'GitHub',
                         className: 'header-github-link',
                         position: 'right',
+                        alt: 'Gitlab repository',
                     },
                 ],
             },
@@ -226,7 +226,7 @@ const config = {
                         items: [
                             {
                                 label: '文档首页',
-                                to: '/docs/next/intro',
+                                to: '/docs/next/platform_intro/intro',
                             },
                             {
                                 label: 'Open Api',

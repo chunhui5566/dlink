@@ -3,13 +3,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.dlink</groupId>
-        <artifactId>dlink</artifactId>
-        <version>0.7.0</version>
+        <groupId>org.dinky</groupId>
+        <artifactId>dinky</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>dlink-web</artifactId>
     <packaging>pom</packaging>
+
+    <name>Dinky : Dlink-Web</name>
 
     <build>
         <finalName>${project.artifactId}-${project.version}</finalName>

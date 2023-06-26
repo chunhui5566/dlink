@@ -64,7 +64,6 @@ const ClusterForm: React.FC<ClusterFormProps> = (props) => {
     if (!fieldsValue.alias || fieldsValue.alias.length == 0) {
       fieldsValue.alias = fieldsValue.name;
     }
-
     setFormVals(fieldsValue);
     handleSubmit(fieldsValue);
   };
@@ -83,7 +82,6 @@ const ClusterForm: React.FC<ClusterFormProps> = (props) => {
           rules={[{required: true, message: l('pages.rc.cluster.namePlaceholder') }]}>
           <Input placeholder={l('pages.rc.cluster.namePlaceholder') }/>
         </Form.Item>
-
         <Form.Item
           name="alias"
           label={l('pages.rc.cluster.alias')}

@@ -26,6 +26,7 @@ export const RUN_MODE = {
   YARN_APPLICATION: 'yarn-application',
   KUBERNETES_SESSION: 'kubernetes-session',
   KUBERNETES_APPLICATION: 'kubernetes-application',
+  KUBERNETES_APPLICATION_OPERATOR: 'kubernetes-application-operator',
 };
 
 export const DIALECT = {
@@ -43,7 +44,7 @@ export const DIALECT = {
   PHOENIX: 'Phoenix',
   STARROCKS: 'StarRocks',
   PRESTO: 'Presto',
-  KUBERNETES_APPLICATION: 'KubernetesApplaction',
+  KUBERNETES_APPLICATION: 'KubernetesApplication',
   JAVA: 'Java',
   SCALA: 'Scala',
   PYTHON: 'Python',

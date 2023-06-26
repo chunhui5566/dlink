@@ -36,6 +36,7 @@ export function getConfig(values: any) {
       hadoopConfigPath: values.hadoopConfigPath,
       flinkLibPath: values.flinkLibPath,
       flinkConfigPath: values.flinkConfigPath,
+      userJarPath: values.userJarPath,
       hadoopConfig,
       flinkConfig,
     };
@@ -49,8 +50,22 @@ export function getConfig(values: any) {
       flinkConfigPath: values.flinkConfigPath,
       kubernetesConfig,
       dockerConfig,
-
+      userJarPath: values.userJarPath,
       flinkConfig,
+    };
+  }else if(values.type=='KubernetesOperator') {
+    let kubernetesConfig = addValueToMap(values, KUBERNETES_CONFIG_NAME_LIST());
+    addListToMap(values.kubernetesConfigList, kubernetesConfig);
+    let dockerConfig = addValueToMap(values, DOCKER_CONFIG_NAME_LIST());
+    let flinkVersion = values.flinkVersion
+    return {
+      flinkLibPath: values.flinkLibPath,
+      flinkConfigPath: values.flinkConfigPath,
+      kubernetesConfig,
+      dockerConfig,
+      userJarPath: values.userJarPath,
+      flinkConfig,
+      flinkVersion
     };
   } else {
     //all code paths must return a value.
@@ -78,31 +93,36 @@ function addValueToMap(values: {}, keys: string []) {
     return config;
   }
   for (let i in keys) {
-    config[keys[i]] = values[keys[i]];
+    if(values[keys[i]]){
+      config[keys[i]] = values[keys[i]];
+    }
   }
   return config;
 }
 
 export function getConfigFormValues(values: any) {
+
   if (!values.id) {
     return {type: values.type};
   }
   let formValues = addValueToMap(values, [
     'id',
     'name',
-    'alias',
     'type',
     'note',
     'enabled',
     'enabled',
   ]);
   let config = JSON.parse(values.configJson);
+
   let configValues = addValueToMap(config, [
     'hadoopConfigPath',
     'flinkLibPath',
     'flinkConfigPath',
+    'flinkVersion',
   ]);
   let hadoopConfig = addValueToMap(config.hadoopConfig, HADOOP_CONFIG_NAME_LIST());
+  let userJarPath = config.userJarPath;
   let kubernetesConfig = addValueToMap(config.kubernetesConfig, KUBERNETES_CONFIG_NAME_LIST());
   let dockerConfig = addValueToMap(config.dockerConfig, DOCKER_CONFIG_NAME_LIST());
   let flinkConfig = addValueToMap(config.flinkConfig, FLINK_CONFIG_NAME_LIST());
@@ -119,6 +139,7 @@ export function getConfigFormValues(values: any) {
     hadoopConfigList,
     kubernetesConfigList,
     dockerConfigList,
+    userJarPath,
     ...flinkConfig,
     flinkConfigList
   }

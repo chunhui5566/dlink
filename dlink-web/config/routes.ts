@@ -38,14 +38,9 @@ export default [
     layout: false,
     routes: [
       {
-        path: '/user',
-        routes: [
-          {
-            name: 'login',
-            path: '/user/login',
-            component: './user/Login',
-          },
-        ],
+        name: 'login',
+        path: '/user/login',
+        component: './user/Login',
       },
     ],
   },
@@ -145,7 +140,7 @@ export default [
         name: 'document',
         icon: 'container',
         component: './RegistrationCenter/Document',
-      },{
+      }, {
         path: '/registration/fragment',
         name: 'fragment',
         icon: "cloud",
@@ -174,6 +169,12 @@ export default [
         name: 'roleManager',
         icon: 'TeamOutlined',
         component: './AuthenticationCenter/RoleManager',
+      },
+      {
+        path: '/authenticationCenter/roleSelectPermissions',
+        name: 'roleSelectPermissions',
+        icon: 'FundViewOutlined',
+        component: './AuthenticationCenter/RoleSelectPermissions',
       },
       {
         path: '/authenticationCenter/namespaceManager',

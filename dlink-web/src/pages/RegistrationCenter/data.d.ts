@@ -21,7 +21,6 @@
 export type AlertGroupTableListItem = {
   id: number,
   name: string,
-  alias: string,
   alertInstanceIds: string,
   note: string,
   enabled: boolean,
@@ -48,6 +47,7 @@ export type ClusterTableListItem = {
   type: string,
   hosts: string,
   jobManagerHost: string,
+  autoRegisters: boolean,
   version: string,
   status: number,
   note: string,
@@ -60,7 +60,6 @@ export type ClusterTableListItem = {
 export type ClusterConfigurationTableListItem = {
   id: number,
   name: string,
-  alias: string,
   type: string,
   config: any,
   configJson: string,
@@ -75,7 +74,6 @@ export type ClusterConfigurationTableListItem = {
 export type DataBaseItem = {
   id: number,
   name: string,
-  alias: string,
   groupName: string,
   type: string,
   url: string,
@@ -143,7 +141,6 @@ export type DocumentTableListItem = {
 export type FragmentVariableTableListItem = {
   id: number,
   name: string,
-  alias: string,
   fragmentValue: string,
   note: string,
   enabled: boolean,
@@ -155,7 +152,6 @@ export type FragmentVariableTableListItem = {
 export type JarTableListItem = {
   id: number,
   name: string,
-  alias: string,
   type: string,
   path: string,
   mainClass: string,
